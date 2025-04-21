@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+      <h1>Gestione Ombrelloni</h1>
+      <p>Amministrazione affitti e tariffe</p>
+    </header>
+    <div class="container">
+      <aside class="left">
+        <h2>Filtra Ricerca</h2>
+        <form id="filtroForm">
+          <label>Settore:
+            <input type="text" name="settore" />
+          </label><br />
+          <label>Fila:
+            <input type="number" name="fila" />
+          </label><br />
+          <label>Tipologia:
+            <select name="tipologia">
+              <option value="standard">Standard</option>
+              <option value="lusso">Lusso</option>
+            </select>
+          </label><br />
+          <label>Tipo Tariffa:
+            <select name="tariffaTipo">
+              <option value="giornaliera">Giornaliera</option>
+              <option value="abbonamento">Abbonamento</option>
+            </select>
+          </label><br />
+          <label>Data:
+            <input type="date" name="data" />
+          </label><br />
+          <button type="submit">Cerca</button>
+        </form>
+      </aside>
+      <main>
+        <h2>Risultati</h2>
+        <div id="formContainer"></div>
+        <div id="risultati"></div>
+      </main>
+      <aside class="right">
+        <h2>Navigazione</h2>
+        <ul>
+          <li><button onclick="mostraForm('ombrellone')">➕ Aggiungi Ombrellone</button></li>
+          <li><button onclick="mostraForm('tipologia')">➕ Aggiungi Tipologia</button></li>
+          <li><button onclick="mostraForm('tariffa')">➕ Aggiungi Tariffa</button></li>
+          <li><button onclick="mostraForm('contratto')">➕ Aggiungi Contratto</button></li>
+          <hr />
+          <li><button onclick="mostraLista('contratti')">📜 Lista Contratti</button></li>
+          <li><button onclick="mostraLista('ombrelloni')">📦 Lista Ombrelloni</button></li>
+          <li><button onclick="mostraLista('tipologie')">📑 Lista Tipologie</button></li>
+        </ul>
+      </aside>
+    </div>
+    <footer>
+      <footer>
+        <p>&copy; 2025 - Progetto Universitario - Gestione Ombrelloni</p>
+    </footer>
+
+
+  <script src="app.js"></script>
+</body>
+</html>
