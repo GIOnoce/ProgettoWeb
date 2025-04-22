@@ -13,7 +13,6 @@ header, footer {
   margin: 10px;
   border-radius: 12px;
   box-shadow: 0 2px 5px rgba(0,0,0,0.2);
-
 }
 
 .container {
@@ -87,6 +86,12 @@ button:hover {
   background-color: #00838f;
 }
 
+/* Bottone attivo */
+.active-button {
+  background-color: #00796b !important;
+}
+
+/* Lista navigazione laterale */
 .right ul {
   list-style: none;
   padding: 0;
@@ -105,4 +110,68 @@ button:hover {
 footer p {
   margin: 0;
   font-size: 0.9em;
+}
+
+/* Responsive: layout mobile */
+@media (max-width: 768px) {
+  .container {
+    flex-direction: column;
+  }
+
+  .left, .right, main {
+    width: 100%;
+  }
+}
+
+/* Contenitore principale della Dinamic View con barra di scorrimento laterale */
+.dinamic-view {
+  width: 100%;
+  height: 500px; /* Imposta un'altezza fissa per la sezione */
+  overflow-y: scroll; /* Attiva la barra di scorrimento verticale */
+  position: relative;
+  padding-right: 15px; /* Un po' di spazio per la barra di scorrimento */
+  box-sizing: border-box;
+  margin-bottom: 20px; /* Spazio inferiore */
+}
+
+/* Contenitore per gli elementi scorrevoli dentro la Dinamic View */
+.scroll-container {
+  display: flex;
+  flex-direction: column; /* Disporre gli elementi verticalmente */
+  gap: 20px;
+}
+
+/* Stile per ogni singolo elemento che verrà scorrendo (es. contratti) */
+.scroll-item {
+  background-color: #f4f4f4;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+}
+
+.scroll-item:hover {
+  transform: scale(1.05); /* Aggiungi effetto hover */
+}
+
+/* Barra di scorrimento personalizzata per il lato destro */
+.dinamic-view::-webkit-scrollbar {
+  width: 12px; /* Impostiamo la larghezza della barra di scorrimento */
+}
+
+/* Pollice (parte scorrevole della barra) */
+.dinamic-view::-webkit-scrollbar-thumb {
+  background-color: #888; /* Colore del pollice */
+  border-radius: 10px; /* Rende il pollice arrotondato */
+}
+
+.dinamic-view::-webkit-scrollbar-thumb:hover {
+  background-color: #555; /* Colore quando il pollice è sopra */
+}
+
+/* Barre di scorrimento (parte che non si muove) */
+.dinamic-view::-webkit-scrollbar-track {
+  background: #f1f1f1; /* Colore della parte "fissa" della barra */
+  border-radius: 10px;
 }

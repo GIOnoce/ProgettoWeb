@@ -40,17 +40,17 @@
         </form>
       </aside>
       <main>
-        <h2>Risultati</h2>
-        <div id="formContainer"></div>
-        <div id="risultati"></div>
+        <h2>Dinamic View</h2>
+        <div id="dinamicView" class="dinamic-view">
+          <div id="risultati" class="scroll-container">
+            <!-- I contratti o contenuti verranno inseriti qui -->
+          </div>
+        </div>
       </main>
       <aside class="right">
         <h2>Navigazione</h2>
         <ul>
-          <li><button onclick="mostraForm('ombrellone')">➕ Aggiungi Ombrellone</button></li>
-          <li><button onclick="mostraForm('tipologia')">➕ Aggiungi Tipologia</button></li>
-          <li><button onclick="mostraForm('tariffa')">➕ Aggiungi Tariffa</button></li>
-          <li><button onclick="mostraForm('contratto')">➕ Aggiungi Contratto</button></li>
+          <li><button onclick="mostraForm('aggiungiContratto')">➕ Aggiungi Contratto</button></li>
           <hr />
           <li><button onclick="mostraLista('contratti')">📜 Lista Contratti</button></li>
           <li><button onclick="mostraLista('ombrelloni')">📦 Lista Ombrelloni</button></li>
