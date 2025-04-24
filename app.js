@@ -87,12 +87,11 @@ function caricaTipologiaTariffa(workbook) {
   if (sheet) {
     const rows = XLSX.utils.sheet_to_json(sheet);
     rows.forEach(row => {
-      if (row.codTipologia && row.codTariffa && row.tipoTariffa) {
+      if (row.codTipologia && row.codTariffa ) {
         // Aggiungi i dati nel vettore tariffe
         tariffe.push({
           codTipologia: row.codTipologia,   // Codice della tipologia (trattato come stringa)
           codTariffa: row.codTariffa,       // Codice della tariffa (trattato come stringa)
-          tipoTariffa: String(row.tipoTariffa),  // Tipo di tariffa (stringa, es. "Giornaliera" o "Abbonamento")
         });
       }
     });
@@ -130,14 +129,14 @@ function caricaContratti(workbook) {
         data = data + "-01";  // Correggi la data se manca il giorno
       }
 
-      if (row.numero && data && row.giorni) {
+      if (row.numProgr && data && row.stipulatoDa) {
         contratti.push({
-          numero: row.numero,
+          numProgr: row.numProgr,
           data: data,
           importo: parseFloat(row.importo || 0),
-          giorni: (row.giorni || '').split(',').map(g => g.trim()).filter(Boolean),
+          stipulatoDa: (row.stipulatoDa || '').split(',').map(g => g.trim()).filter(Boolean),
         });
-        console.log("Contratto aggiunto:", row.numero);  // Verifica quale contratto viene aggiunto
+        console.log("Contratto aggiunto:", row.numProgr);  // Verifica quale contratto viene aggiunto
       }
     });
   } else {
@@ -202,9 +201,7 @@ function mostraLista(tipo) {
           const div = document.createElement("div");
           div.innerHTML = 
             `<strong>Codice Tipologia: ${t.codTipologia}</strong><br>
-            Codice Tariffa: ${t.codTariffa}<br>
-            Tipo Tariffa: ${t.tipoTariffa}<br> <!-- Mostra tipoTariffa come stringa -->
-            <hr>`;
+            Codice Tariffa: ${t.codTariffa}`;
           container.appendChild(div);
         });
         break;
@@ -230,9 +227,9 @@ function mostraLista(tipo) {
           // Forza il formato della data
           const formattedDate = new Date(c.data).toLocaleDateString('it-IT'); // Assicurati che la data venga formattata correttamente
           div.innerHTML = 
-            `<strong>Contratto #${c.numero}</strong><br>
+            `<strong>Contratto #${c.numProgr}</strong><br>
             Data: ${formattedDate}, Importo: €${c.importo.toFixed(2)}<br>  <!-- Usa toFixed per visualizzare 2 decimali -->
-            Giorni prenotati: ${c.giorni.join(", ")}<br>
+            Stipulato da: ${c.stipulatoDa.join(", ")}<br>
             <button onclick="modificaContratto('${c.numero}')">Modifica</button>
             <button onclick="eliminaContratto('${c.numero}')">Elimina</button>
             <hr>`;
@@ -248,38 +245,38 @@ function mostraLista(tipo) {
 }
 
 // Aggiungi un nuovo contratto
-function aggiungiContratto(data, importo, giorni) {
-  const numero = generateId();
-  if (!data || isNaN(importo) || giorni.length === 0) { //controllo
+function aggiungiContratto(data, importo, stipulatoDa) {
+  const numProgr = generateId();
+  if (!data || isNaN(importo) || stipulatoDa.length === 0) { //controllo
     return alert("Tutti i campi del contratto sono richiesti.");
   }
-  if (giorni.length === 0) {
+  if (stipulatoDa.length === 0) {
     alert("Inserisci almeno un giorno valido.");
     return;
   }
-  contratti.push({ numero, data, importo: parseFloat(importo), giorni }); //pusha i contratti
-  alert(`Contratto #${numero} aggiunto.`);
+  contratti.push({ numProgr, data, importo: parseFloat(importo), stipulatoDa }); //pusha i contratti
+  alert(`Contratto #${numProgr} aggiunto.`);
   mostraLista("contratti");
   
 }
 
 // Modifica un contratto esistente
-function modificaContratto(numero) {
-  numero = parseInt(numero);  // Assicurati che il numero sia un intero
-  const c = contratti.find(c => c.numero === numero);
+function modificaContratto(numProgr) {
+  numProgr = parseInt(numero);  // Assicurati che il numero sia un intero
+  const c = contratti.find(c => c.numProgr === numProgr);
   if (!c) return alert("Contratto non trovato.");
 
   const nuovaData = prompt("Modifica data (YYYY-MM-DD):", c.data);
   const nuovoImporto = prompt("Modifica importo (€):", c.importo);
-  const nuoviGiorni = prompt("Modifica giorni (separati da virgola):", c.giorni.join(", "));
-  if (giorni.length === 0) {
+  const nuoviGiorni = prompt("Modifica giorni (separati da virgola):", c.stipulatoDa.join(", "));
+  if (stipulatoDa.length === 0) {
     alert("Inserisci almeno un giorno valido.");
     return;
   }
   if (nuovaData && !isNaN(parseFloat(nuovoImporto)) && nuoviGiorni) {
     c.data = nuovaData;
     c.importo = parseFloat(nuovoImporto);
-    c.giorni = nuoviGiorni.split(",").map(g => g.trim()).filter(Boolean);
+    c.stipulatoDa = nuoviGiorni.split(",").map(g => g.trim()).filter(Boolean);
     alert("Contratto aggiornato.");
     mostraLista("contratti");
   } else {
@@ -288,10 +285,10 @@ function modificaContratto(numero) {
 }
 
 // Elimina un contratto
-function eliminaContratto(numero) {
-  numero = parseInt(numero);  // Assicurati che il numero sia un intero
+function eliminaContratto(numProgr) {
+  numProgr = parseInt(numProgr);  // Assicurati che il numero sia un intero
   if (confirm("Vuoi eliminare questo contratto?")) {
-    contratti = contratti.filter(c => c.numero !== numero);
+    contratti = contratti.filter(c => c.numProgr !== numProgr);
     alert("Contratto eliminato.");
     mostraLista("contratti");
   }
@@ -309,7 +306,7 @@ function mostraForm(tipo) {
       <form id="formContratto">
         Data: <input type="date" name="data" required><br>
         Importo (€): <input type="number" step="0.01" name="importo" required><br>
-        Giorni prenotati (separati da virgola): <input name="giorni" required><br>
+        Stipulato da: <input name="giorni" required><br>
         <button type="submit">Aggiungi</button>
       </form>
     `;
@@ -337,90 +334,70 @@ function mostraForm(tipo) {
   }
 }
 
-// Funzione unificata di filtro per contratti, ombrelloni, tipologie
 document.getElementById("filtroForm").addEventListener("submit", function (e) {
   e.preventDefault();
-  const form = new FormData(this);
 
-  // Parametri di filtro
-  const settore = form.get("settore").trim().toLowerCase();
-  const fila = form.get("fila").trim();
-  const tipologia = form.get("tipologia").trim().toLowerCase();
-  const tariffaTipo = form.get("tariffaTipo").trim().toLowerCase();
-  const data = form.get("data").trim();
+  const formData = new FormData(this);
+  const dataInizio = formData.get("dataInizio");
+  const dataFine = formData.get("dataFine");
+  const settore = formData.get("settore");
+  const fila = formData.get("fila");
+  const tipologia = formData.get("tipologia");
+  const tipoTariffa = formData.get("tipoTariffa");
+  const numMinGiorni = parseInt(formData.get("numMinGiorni")) || 0;
+  const prezzoMin = parseFloat(formData.get("prezzoMin")) || 0;
+  const prezzoMax = parseFloat(formData.get("prezzoMax")) || Infinity;
 
-  const risultatiContratti = [];
-  const risultatiOmbrelloni = [];
-  const risultatiTipologie = [];
-
-  // Filtro per contratti
-  contratti.forEach(c => {
-    let matches = true;
-    if (settore && !c.settore.toLowerCase().includes(settore)) matches = false;
-    if (fila && !c.fila.toString().includes(fila)) matches = false;
-    if (tipologia && !c.tipologia.toLowerCase().includes(tipologia)) matches = false;
-    if (tariffaTipo && !c.tariffaTipo.toLowerCase().includes(tariffaTipo)) matches = false;
-    if (data && !c.data.includes(data)) matches = false;
-    if (matches) risultatiContratti.push(c);
-  });
-
-  // Filtro per ombrelloni
-  ombrelloni.forEach(o => {
-    let matches = true;
-    if (settore && !o.settore.toLowerCase().includes(settore)) matches = false;
-    if (fila && !o.fila.toString().includes(fila)) matches = false;
-    if (tipologia && !o.tipologia.toLowerCase().includes(tipologia)) matches = false;
-    if (matches) risultatiOmbrelloni.push(o);
-  });
-
-  // Filtro per tipologie
-  tipologie.forEach(t => {
-    if (tipologia && t.nome.toLowerCase().includes(tipologia)) {
-      risultatiTipologie.push(t);
-    }
-  });
-
-  // Mostra i risultati nel container
   const container = document.getElementById("risultati");
-  container.innerHTML = "";
+  container.innerHTML = "<h3>Risultati Filtrati</h3>";
 
-  if (risultatiContratti.length === 0 && risultatiOmbrelloni.length === 0 && risultatiTipologie.length === 0) {
-    return container.innerHTML = "<p>Nessun risultato trovato.</p>";
+  let risultati = contratti.filter(c => {
+    const dataContratto = new Date(c.data);
+    if (dataInizio && dataContratto < new Date(dataInizio)) return false;
+    if (dataFine && dataContratto > new Date(dataFine)) return false;
+
+    if (c.importo < prezzoMin || c.importo > prezzoMax) return false;
+
+    if (tipoTariffa) {
+      const haTariffa = tariffe.find(t => t.tipoTariffa === tipoTariffa && contratti.find(ct => ct.numero === c.numero));
+      if (!haTariffa) return false;
+    }
+
+    if (tipoTariffa === "Abbonamento" && c.giorni.length < numMinGiorni) return false;
+
+    return true;
+  });
+
+  if (settore || fila || tipologia) {
+    risultati = risultati.filter(c => {
+      const ombrellone = ombrelloni.find(o => 
+        (!settore || o.settore === settore) &&
+        (!fila || o.fila == fila) &&
+        (!tipologia || o.tipologia === tipologia)
+      );
+      return ombrellone;
+    });
   }
 
-  // Mostra i risultati filtrati
-  risultatiContratti.forEach(c => {
+  if (risultati.length === 0) {
+    container.innerHTML += "<p>Nessun risultato trovato con i filtri selezionati.</p>";
+    return;
+  }
+
+  risultati.forEach(c => {
+    const formattedDate = new Date(c.data).toLocaleDateString("it-IT");
     const div = document.createElement("div");
-    const formattedDate = new Date(c.data).toLocaleDateString('it-IT');
     div.innerHTML = `
-      <strong>Contratto #${c.numero}</strong><br>
+      <strong>Contratto #${c.numProgr}</strong><br>
       Data: ${formattedDate}, Importo: €${c.importo.toFixed(2)}<br>
-      Giorni prenotati: ${c.giorni.join(", ")}<br>
-      <button onclick="modificaContratto('${c.numero}')">✏️ Modifica</button>
-      <button onclick="eliminaContratto('${c.numero}')">🗑️ Elimina</button>
+      Giorni: ${c.stipulatoDa.join(", ")}<br>
       <hr>
     `;
     container.appendChild(div);
   });
+});
 
-  risultatiOmbrelloni.forEach(o => {
-    const div = document.createElement("div");
-    div.innerHTML = `
-      <strong>Ombrellone #${o.id}</strong><br>
-      Settore: ${o.settore}, Fila: ${o.fila}, Ordine: ${o.ordine}<br>
-      Tipologia: ${o.tipologia}<br>
-      <hr>
-    `;
-    container.appendChild(div);
-  });
-
-  risultatiTipologie.forEach(t => {
-    const div = document.createElement("div");
-    div.innerHTML = `
-      <strong>${t.nome}</strong> (${t.codice})<br>
-      Accessori: ${t.accessori.join(", ")}<br>
-      <hr>
-    `;
-    container.appendChild(div);
-  });
+document.getElementById("tipoTariffa").addEventListener("change", function () {
+  const isAbbonamento = this.value === "Abbonamento";
+  document.getElementById("labelMinGiorni").style.display = isAbbonamento ? "block" : "none";
 });
