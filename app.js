@@ -3,16 +3,17 @@ let ombrelloni = [];
 let tipologie = [];
 let tariffe = [];
 let contratti = [];
+let guida= [];
 
 // Genera un numero casuale tra 0 e 999999 per usarlo come ID
 const generateId = () => Math.floor(Math.random() * 1000000);
-// Funzione per mostrare i contratti
 
-
+//funzione che avvia attività appena si apre la finestra
 window.addEventListener('load', () => {
-  caricaExcelDaCartella('Database_SpiaggiaFacile_Aggiornato.xlsx'); // Carica il file Excel automaticamente appena la pagina si carica
+  caricaGuida();
+  caricaExcelDaCartella('Database_SpiaggiaFacile_Aggiornato.xlsx'); // Carica il file Excel automaticamente
 });
-
+//funzione che caricaExcel
 function caricaExcelDaCartella(percorsoFile) {
   const xhr = new XMLHttpRequest();
   xhr.open('GET', percorsoFile, true);
@@ -23,14 +24,16 @@ function caricaExcelDaCartella(percorsoFile) {
       const data = new Uint8Array(xhr.response);
       const workbook = XLSX.read(data, { type: 'array' });
 
+      console.log("File Excel caricato:", workbook);  // Log per verificare che il file venga caricato
       // Carica i dati da ogni foglio
       caricaOmbrelloni(workbook);
       caricaTipologie(workbook);
-      caricaTariffe(workbook);
-      caricaClienti(workbook);
+      caricaTipologiaTariffa(workbook);
       caricaContratti(workbook);
 
-      alert("File Excel caricato automaticamente!");
+     
+       alert("File Excel caricato automaticamente!"); // Rimuovi questo alert se non lo vuoi
+       caricaGuida();
     } else {
       alert("Errore nel caricamento del file Excel.");
     }
@@ -79,23 +82,25 @@ function caricaTipologie(workbook) {
   mostraLista('tipologie');
 }
 
-function caricaTariffe(workbook) {
-  const sheet = workbook.Sheets['Tariffe'];
+function caricaTipologiaTariffa(workbook) {
+  const sheet = workbook.Sheets['TipologiaTariffa'];  // Assicurati che il nome del foglio sia corretto
   if (sheet) {
     const rows = XLSX.utils.sheet_to_json(sheet);
     rows.forEach(row => {
-      if (row.tipologia && row.tariffa) {
+      if (row.codTipologia && row.codTariffa && row.tipoTariffa) {
+        // Aggiungi i dati nel vettore tariffe
         tariffe.push({
-          tipologia: row.tipologia,
-          tariffa: parseFloat(row.tariffa || 0),
+          codTipologia: row.codTipologia,   // Codice della tipologia (trattato come stringa)
+          codTariffa: row.codTariffa,       // Codice della tariffa (trattato come stringa)
+          tipoTariffa: String(row.tipoTariffa),  // Tipo di tariffa (stringa, es. "Giornaliera" o "Abbonamento")
         });
       }
     });
   }
-  mostraLista('tariffe');
+  mostraLista('tipologiatariffa');  // Funzione per visualizzare le tariffe
 }
 
-function caricaClienti(workbook) {
+/*function caricaClienti(workbook) {
   const sheet = workbook.Sheets['Cliente'];
   if (sheet) {
     const rows = XLSX.utils.sheet_to_json(sheet);
@@ -111,27 +116,54 @@ function caricaClienti(workbook) {
     });
   }
   mostraLista('clienti');
-}
+}*/
 
 function caricaContratti(workbook) {
   const sheet = workbook.Sheets['Contratti'];
   if (sheet) {
     const rows = XLSX.utils.sheet_to_json(sheet);
+    console.log("Righe lette dal foglio 'Contratti':", rows);
+
     rows.forEach(row => {
-      if (row.numero && row.data) {
+      let data = row.data;
+      if (data && !data.includes("-01")) {
+        data = data + "-01";  // Correggi la data se manca il giorno
+      }
+
+      if (row.numero && data && row.giorni) {
         contratti.push({
           numero: row.numero,
-          data: row.data,
+          data: data,
           importo: parseFloat(row.importo || 0),
           giorni: (row.giorni || '').split(',').map(g => g.trim()).filter(Boolean),
         });
+        console.log("Contratto aggiunto:", row.numero);  // Verifica quale contratto viene aggiunto
       }
     });
   } else {
     console.log("Foglio 'Contratti' non trovato.");
   }
-  console.log('Contratti finali:', contratti); // Log per vedere i contratti finali nell'array
-  mostraLista('contratti');
+
+  console.log('Contratti caricati:', contratti);
+  // Rimuovi la chiamata a mostraLista('contratti')
+  // mostraLista('contratti');  // Non vuoi che questo venga eseguito automaticamente
+}
+
+function caricaGuida() {
+  const container = document.getElementById("risultati");
+  container.innerHTML = "";   
+  const guidaHtml = `
+    <h3>Guida alla Gestione Ombrelloni</h3>
+    <p>Benvenuto nella sezione di gestione ombrelloni! Ecco cosa puoi fare:</p>
+    <ul>
+      <li><strong>Aggiungi Contratto</strong>: Crea un nuovo contratto di affitto ombrellone.</li>
+      <li><strong>Contratti</strong>: Visualizza, modifica o elimina contratti esistenti.</li>
+      <li><strong>Prenotazioni Ombrelloni</strong>: Controlla le prenotazioni degli ombrelloni.</li>
+      <li><strong>Tipologie Ombrelloni</strong>: Gestisci le diverse tipologie di ombrelloni disponibili.</li>
+    </ul>
+    <p>Se hai bisogno di assistenza, contatta l'amministratore del sistema.</p>
+  `;
+  container.innerHTML = guidaHtml;
 }
 
 function mostraLista(tipo) {
@@ -143,14 +175,11 @@ function mostraLista(tipo) {
       if (ombrelloni.length === 0) return container.innerHTML = "<p>Nessun ombrellone disponibile.</p>";
       ombrelloni.forEach(o => {
         const div = document.createElement("div");
-        div.innerHTML = `
-          <strong>Ombrellone #${o.id}</strong><br>
+        div.innerHTML = 
+          `<strong>Ombrellone #${o.id}</strong><br>
           Settore: ${o.settore}, Fila: ${o.fila}, Ordine: ${o.ordine}<br>
           Tipologia: ${o.tipologia}<br>
-          <button onclick="modificaOmbrellone(${o.id})">✏️ Modifica</button>
-          <button onclick="eliminaOmbrellone(${o.id})">🗑️ Elimina</button>
-          <hr>
-        `;
+          <hr>`;
         container.appendChild(div);
       });
       break;
@@ -159,57 +188,62 @@ function mostraLista(tipo) {
       if (tipologie.length === 0) return container.innerHTML = "<p>Nessuna tipologia disponibile.</p>";
       tipologie.forEach(t => {
         const div = document.createElement("div");
-        div.innerHTML = `
-          <strong>${t.nome}</strong> (${t.codice})<br>
+        div.innerHTML = 
+          `<strong>${t.nome}</strong> (${t.codice})<br>
           Accessori: ${t.descrizione}<br>
-          <hr>
-        `;
+          <hr>`;
         container.appendChild(div);
       });
       break;
 
-    case "tariffe":
-      if (tariffe.length === 0) return container.innerHTML = "<p>Nessuna tariffa disponibile.</p>";
-      tariffe.forEach(t => {
-        const div = document.createElement("div");
-        div.innerHTML = `
-          <strong>Tipologia: ${t.tipologia}</strong><br>
-          Tariffa: €${t.tariffa}<br>
-          <hr>
-        `;
-        container.appendChild(div);
-      });
-      break;
+      case "tipologiatariffa":
+        if (tariffe.length === 0) return container.innerHTML = "<p>Nessuna tariffa disponibile.</p>";
+        tariffe.forEach(t => {
+          const div = document.createElement("div");
+          div.innerHTML = 
+            `<strong>Codice Tipologia: ${t.codTipologia}</strong><br>
+            Codice Tariffa: ${t.codTariffa}<br>
+            Tipo Tariffa: ${t.tipoTariffa}<br> <!-- Mostra tipoTariffa come stringa -->
+            <hr>`;
+          container.appendChild(div);
+        });
+        break;
 
     case "clienti":
       if (clienti.length === 0) return container.innerHTML = "<p>Nessun cliente disponibile.</p>";
       clienti.forEach(c => {
         const div = document.createElement("div");
-        div.innerHTML = `
-          <strong>Cliente: ${c.nome} ${c.cognome}</strong><br>
+        div.innerHTML = 
+          `<strong>Cliente: ${c.nome} ${c.cognome}</strong><br>
           Email: ${c.email}<br>
-          <hr>
-        `;
+          <hr>`;
         container.appendChild(div);
       });
       break;
 
-    case "contratti":
-      if (contratti.length === 0) 
-      return container.innerHTML = "<p>Nessun contratto disponibile.</p>";
-      contratti.forEach(c => {
-        const div = document.createElement("div");
-        div.innerHTML = `
-          <strong>Contratto #${c.numero}</strong><br>
-          Data: ${c.data}, Importo: €${c.importo}<br>
-          Giorni prenotati: ${c.giorni.join(", ")}<br>
-          <button onclick="modificaContratto('${c.numero}')">✏️ Modifica</button>
-          <button onclick="eliminaContratto('${c.numero}')">🗑️ Elimina</button>
-          <hr>
-        `;
-        container.appendChild(div);
-      });
-      break;
+      case "contratti":
+        if (contratti.length === 0) {
+          return container.innerHTML = "<p>Nessun contratto disponibile.</p>";
+        }
+        contratti.forEach(c => {
+          const div = document.createElement("div");
+          // Forza il formato della data
+          const formattedDate = new Date(c.data).toLocaleDateString('it-IT'); // Assicurati che la data venga formattata correttamente
+          div.innerHTML = 
+            `<strong>Contratto #${c.numero}</strong><br>
+            Data: ${formattedDate}, Importo: €${c.importo.toFixed(2)}<br>  <!-- Usa toFixed per visualizzare 2 decimali -->
+            Giorni prenotati: ${c.giorni.join(", ")}<br>
+            <button onclick="modificaContratto('${c.numero}')">Modifica</button>
+            <button onclick="eliminaContratto('${c.numero}')">Elimina</button>
+            <hr>`;
+          container.appendChild(div);
+        });
+        break;
+
+        case "guida":
+        caricaGuida(); // Chiama la funzione mostraGuida per visualizzare la guida
+        break;
+    
   }
 }
 
@@ -303,30 +337,64 @@ function mostraForm(tipo) {
   }
 }
 
-// Funzione di filtro per contratti
+// Funzione unificata di filtro per contratti, ombrelloni, tipologie
 document.getElementById("filtroForm").addEventListener("submit", function (e) {
   e.preventDefault();
   const form = new FormData(this);
-  const numero = form.get("numero").trim().toLowerCase();
-  const data = form.get("data");
 
-  const risultati = contratti.filter(c => {
-    return (!numero || c.numero.toLowerCase().includes(numero)) &&
-           (!data || c.data === data);
+  // Parametri di filtro
+  const settore = form.get("settore").trim().toLowerCase();
+  const fila = form.get("fila").trim();
+  const tipologia = form.get("tipologia").trim().toLowerCase();
+  const tariffaTipo = form.get("tariffaTipo").trim().toLowerCase();
+  const data = form.get("data").trim();
+
+  const risultatiContratti = [];
+  const risultatiOmbrelloni = [];
+  const risultatiTipologie = [];
+
+  // Filtro per contratti
+  contratti.forEach(c => {
+    let matches = true;
+    if (settore && !c.settore.toLowerCase().includes(settore)) matches = false;
+    if (fila && !c.fila.toString().includes(fila)) matches = false;
+    if (tipologia && !c.tipologia.toLowerCase().includes(tipologia)) matches = false;
+    if (tariffaTipo && !c.tariffaTipo.toLowerCase().includes(tariffaTipo)) matches = false;
+    if (data && !c.data.includes(data)) matches = false;
+    if (matches) risultatiContratti.push(c);
   });
 
+  // Filtro per ombrelloni
+  ombrelloni.forEach(o => {
+    let matches = true;
+    if (settore && !o.settore.toLowerCase().includes(settore)) matches = false;
+    if (fila && !o.fila.toString().includes(fila)) matches = false;
+    if (tipologia && !o.tipologia.toLowerCase().includes(tipologia)) matches = false;
+    if (matches) risultatiOmbrelloni.push(o);
+  });
+
+  // Filtro per tipologie
+  tipologie.forEach(t => {
+    if (tipologia && t.nome.toLowerCase().includes(tipologia)) {
+      risultatiTipologie.push(t);
+    }
+  });
+
+  // Mostra i risultati nel container
   const container = document.getElementById("risultati");
   container.innerHTML = "";
 
-  if (risultati.length === 0) {
+  if (risultatiContratti.length === 0 && risultatiOmbrelloni.length === 0 && risultatiTipologie.length === 0) {
     return container.innerHTML = "<p>Nessun risultato trovato.</p>";
   }
 
-  risultati.forEach(c => {
+  // Mostra i risultati filtrati
+  risultatiContratti.forEach(c => {
     const div = document.createElement("div");
+    const formattedDate = new Date(c.data).toLocaleDateString('it-IT');
     div.innerHTML = `
       <strong>Contratto #${c.numero}</strong><br>
-      Data: ${c.data}, Importo: €${c.importo}<br>
+      Data: ${formattedDate}, Importo: €${c.importo.toFixed(2)}<br>
       Giorni prenotati: ${c.giorni.join(", ")}<br>
       <button onclick="modificaContratto('${c.numero}')">✏️ Modifica</button>
       <button onclick="eliminaContratto('${c.numero}')">🗑️ Elimina</button>
@@ -334,6 +402,25 @@ document.getElementById("filtroForm").addEventListener("submit", function (e) {
     `;
     container.appendChild(div);
   });
+
+  risultatiOmbrelloni.forEach(o => {
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <strong>Ombrellone #${o.id}</strong><br>
+      Settore: ${o.settore}, Fila: ${o.fila}, Ordine: ${o.ordine}<br>
+      Tipologia: ${o.tipologia}<br>
+      <hr>
+    `;
+    container.appendChild(div);
+  });
+
+  risultatiTipologie.forEach(t => {
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <strong>${t.nome}</strong> (${t.codice})<br>
+      Accessori: ${t.accessori.join(", ")}<br>
+      <hr>
+    `;
+    container.appendChild(div);
+  });
 });
-
-
