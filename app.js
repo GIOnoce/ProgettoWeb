@@ -10,9 +10,25 @@ const generateId = () => Math.floor(Math.random() * 1000000);
 
 //funzione che avvia attività appena si apre la finestra
 window.addEventListener('load', () => {
-  caricaGuida();
-  caricaExcelDaCartella('Database_SpiaggiaFacile_Aggiornato.xlsx'); // Carica il file Excel automaticamente
+  caricaExcelDaCartella('Database_SpiaggiaFacile_Aggiornato.xlsx');
+
+  const params = new URLSearchParams(window.location.search);
+  const view = params.get('view');
+
+  if (view === 'contratti') {
+    // Aspetta il caricamento dei dati prima di mostrare
+    setTimeout(() => mostraLista('contratti'), 50);
+  }
+  if (view === 'ombrelloni') {
+    // Aspetta il caricamento dei dati prima di mostrare
+    setTimeout(() => mostraLista('ombrelloni'), 50);
+  }
+  if (view === 'tipologie') {
+    // Aspetta il caricamento dei dati prima di mostrare
+    setTimeout(() => mostraLista('tipologie'), 50);
+  }
 });
+
 //funzione che caricaExcel
 function caricaExcelDaCartella(percorsoFile) {
   const xhr = new XMLHttpRequest();
@@ -30,10 +46,6 @@ function caricaExcelDaCartella(percorsoFile) {
       caricaTipologie(workbook);
       caricaTipologiaTariffa(workbook);
       caricaContratti(workbook);
-
-     
-       alert("File Excel caricato automaticamente!"); // Rimuovi questo alert se non lo vuoi
-       caricaGuida();
     } else {
       alert("Errore nel caricamento del file Excel.");
     }
@@ -62,7 +74,6 @@ function caricaOmbrelloni(workbook) {
       }
     });
   }
-  mostraLista('ombrelloni');
 }
 
 function caricaTipologie(workbook) {
@@ -79,7 +90,6 @@ function caricaTipologie(workbook) {
       }
     });
   }
-  mostraLista('tipologie');
 }
 
 function caricaTipologiaTariffa(workbook) {
@@ -96,7 +106,7 @@ function caricaTipologiaTariffa(workbook) {
       }
     });
   }
-  mostraLista('tipologiatariffa');  // Funzione per visualizzare le tariffe
+
 }
 
 /*function caricaClienti(workbook) {
@@ -142,7 +152,7 @@ function caricaContratti(workbook) {
   } else {
     console.log("Foglio 'Contratti' non trovato.");
   }
-
+  
   console.log('Contratti caricati:', contratti);
   // Rimuovi la chiamata a mostraLista('contratti')
   // mostraLista('contratti');  // Non vuoi che questo venga eseguito automaticamente
@@ -156,9 +166,9 @@ function caricaGuida() {
     <p>Benvenuto nella sezione di gestione ombrelloni! Ecco cosa puoi fare:</p>
     <ul>
       <li><strong>Aggiungi Contratto</strong>: Crea un nuovo contratto di affitto ombrellone.</li>
-      <li><strong>Contratti</strong>: Visualizza, modifica o elimina contratti esistenti.</li>
-      <li><strong>Prenotazioni Ombrelloni</strong>: Controlla le prenotazioni degli ombrelloni.</li>
-      <li><strong>Tipologie Ombrelloni</strong>: Gestisci le diverse tipologie di ombrelloni disponibili.</li>
+      <li><strong>Ricerca Contratti</strong>: Ricerca, modifica o elimina contratti esistenti.</li>
+      <li><strong>Ricerca Ombrelloni</strong>: Controlla le prenotazioni degli ombrelloni.</li>
+      <li><strong>Tipologie Ombrelloni</strong>: Visualizza le diverse tipologie di ombrelloni disponibili.</li>
     </ul>
     <p>Se hai bisogno di assistenza, contatta l'amministratore del sistema.</p>
   `;
@@ -256,20 +266,20 @@ function aggiungiContratto(data, importo, stipulatoDa) {
   }
   contratti.push({ numProgr, data, importo: parseFloat(importo), stipulatoDa }); //pusha i contratti
   alert(`Contratto #${numProgr} aggiunto.`);
-  mostraLista("contratti");
+  mostraLista('contratti');
   
 }
 
 // Modifica un contratto esistente
 function modificaContratto(numProgr) {
-  numProgr = parseInt(numero);  // Assicurati che il numero sia un intero
+  numProgr = parseInt(numProgr);  // Assicurati che il numero sia un intero
   const c = contratti.find(c => c.numProgr === numProgr);
   if (!c) return alert("Contratto non trovato.");
 
   const nuovaData = prompt("Modifica data (YYYY-MM-DD):", c.data);
   const nuovoImporto = prompt("Modifica importo (€):", c.importo);
   const nuoviGiorni = prompt("Modifica giorni (separati da virgola):", c.stipulatoDa.join(", "));
-  if (stipulatoDa.length === 0) {
+  if (nuoviGiorni.length === 0) {
     alert("Inserisci almeno un giorno valido.");
     return;
   }
