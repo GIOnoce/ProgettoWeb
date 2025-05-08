@@ -20,47 +20,13 @@
 
         <form id="filtroForm">
           <!-- Filtro per data contratto -->
-          <label>Data Contratto Inizio:
+          <label>Data Contratto:
             <input type="date" name="dataInizioContratto" />
-          </label><br />
-        
-          <!-- Filtro per importo totale -->
-          <label>Importo Minimo:
-            <input type="number" name="importoMin" step="0.01" placeholder="€" />
-          </label><br />
-        
-          <label>Importo Massimo:
-            <input type="number" name="importoMax" step="0.01" placeholder="€" />
           </label><br />
         
           <!-- Filtro per cliente -->
           <label>Cliente:
-            <select name="cliente">
-              <option value="">Tutti</option>
-              <option value="C001">Luca Rossi</option>
-              <option value="C002">Anna Bianchi</option>
-              <option value="C003">Marco Neri</option>
-            </select>
-          </label><br />
-        
-          <!-- Filtro per id ombrellone -->
-          <label>ID Ombrellone:
-            <select name="ombrellone">
-              <option value="">Tutti</option>
-              <option value="OMB001">OMB001</option>
-              <option value="OMB002">OMB002</option>
-              <option value="OMB003">OMB003</option>
-            </select>
-          </label><br />
-        
-          <!-- Filtro per tipologia -->
-          <label>Tipologia:
-            <select name="tipologia">
-              <option value="">Tutte</option>
-              <option value="T01">Standard</option>
-              <option value="T02">Family</option>
-              <option value="T03">Luxury</option>
-            </select>
+            <input type="text" name="cliente" placeholder="Inserisci Cliente" />
           </label><br />
         
           <button type="submit">🔍 Cerca</button>
