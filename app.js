@@ -4,6 +4,9 @@ let tipologie = [];
 let tariffe = [];
 let contratti = [];
 let guida= [];
+let clienti=[];
+const venduti = [];
+const disponibilita = []; 
 
 // Genera un numero casuale tra 0 e 999999 per usarlo come ID
 const generateId = () => Math.floor(Math.random() * 1000000);
@@ -45,7 +48,12 @@ function caricaExcelDaCartella(percorsoFile) {
       caricaOmbrelloni(workbook);
       caricaTipologie(workbook);
       caricaTipologiaTariffa(workbook);
+      caricaTariffa(workbook);
+      caricaGiornoDisponibilita(workbook);
+      caricaOmbrelloneVenduto(workbook);
       caricaContratti(workbook);
+      caricaClienti(workbook);  
+      
     } else {
       alert("Errore nel caricamento del file Excel.");
     }
@@ -109,23 +117,55 @@ function caricaTipologiaTariffa(workbook) {
 
 }
 
-/*function caricaClienti(workbook) {
-  const sheet = workbook.Sheets['Cliente'];
+function caricaTariffa(workbook) {
+  const sheet = workbook.Sheets['Tariffa'];
   if (sheet) {
     const rows = XLSX.utils.sheet_to_json(sheet);
     rows.forEach(row => {
-      if (row.nome && row.cognome) {
-        clienti.push({
-          id: row.id || crypto.randomUUID(),
-          nome: row.nome,
-          cognome: row.cognome,
-          email: row.email || "N/A",
+      if (row.codice) {
+        tariffe.push({
+          codice: row.codice,
+          prezzo: row.prezzo,
+          dataInizio: row.dataInizio,
+          dataFine: row.dataFine,
+          tipo: row.tipo,
+          numMinGiorni: row.numMinGiorni || null  // Può essere undefined, quindi default a null
         });
       }
     });
   }
-  mostraLista('clienti');
-}*/
+}
+
+function caricaOmbrelloneVenduto(workbook) {
+  const sheet = workbook.Sheets['OmbrelloneVenduto']; // Nome foglio atteso
+  if (sheet) {
+    const rows = XLSX.utils.sheet_to_json(sheet);
+    rows.forEach(row => {
+      if (row.idOmbrellone && row.data && row.contratto) {
+        venduti.push({
+          idOmbrellone: row.idOmbrellone,
+          data: row.data,
+          contratto: row.contratto
+        });
+      }
+    });
+  }
+}
+
+function caricaGiornoDisponibilita(workbook) {
+  const sheet = workbook.Sheets['GiornoDisponibilita']; // Nome foglio atteso
+  if (sheet) {
+    const rows = XLSX.utils.sheet_to_json(sheet);
+    rows.forEach(row => {
+      if (row.idOmbrellone && row.data) {
+        disponibilita.push({
+          idOmbrellone: row.idOmbrellone,
+          data: row.data
+        });
+      }
+    });
+  }
+}
 
 function caricaContratti(workbook) {
   const sheet = workbook.Sheets['Contratti'];
@@ -158,6 +198,24 @@ function caricaContratti(workbook) {
   // mostraLista('contratti');  // Non vuoi che questo venga eseguito automaticamente
 }
 
+function caricaClienti(workbook) {
+  const sheet = workbook.Sheets['Cliente'];
+  if (sheet) {
+    const rows = XLSX.utils.sheet_to_json(sheet);
+    rows.forEach(row => {
+      if (row.nome && row.cognome && row.codice) {
+        clienti.push({
+          codice: row.codice,
+          nome: row.nome,
+          cognome: row.cognome,
+          dataNascita: row.dataNascita || null,
+          indirizzo: row.indirizzo || null
+        });
+      }
+    });
+  }
+}
+
 function caricaGuida() {
   const container = document.getElementById("risultati");
   container.innerHTML = "";   
@@ -181,17 +239,61 @@ function mostraLista(tipo) {
 
   switch (tipo) {
     case "ombrelloni":
-      if (ombrelloni.length === 0) return container.innerHTML = "<p>Nessun ombrellone disponibile.</p>";
-      ombrelloni.forEach(o => {
-        const div = document.createElement("div");
-        div.innerHTML = 
-          `<strong>Ombrellone #${o.id}</strong><br>
-          Settore: ${o.settore}, Fila: ${o.fila}, Ordine: ${o.ordine}<br>
-          Tipologia: ${o.tipologia}<br>
-          <hr>`;
-        container.appendChild(div);
+  if (ombrelloni.length === 0) {
+    container.innerHTML = "<p>Nessun ombrellone disponibile.</p>";
+    break;
+  }
+
+  ombrelloni.forEach(o => {
+    const div = document.createElement("div");
+    div.classList.add("ombrellone-box");
+  
+    // Dettagli base
+    const dettagli = `
+      <strong>Ombrellone #${o.id}</strong><br>
+      Settore: ${o.settore} <br>
+      Fila: ${o.fila}, numFila: ${o.ordine}<br>
+      Tipologia: ${o.tipologia}
+    `;
+  
+    // Sezione stato
+    let stato = "";
+  
+    const disp = disponibilita.filter(d => d.idOmbrellone === o.id);
+    const venduto = venduti.find(v => v.idOmbrellone === o.id);
+  
+    if (disp.length > 0) {
+      stato += `<div class="libero"><strong>Libero</strong><br>`;
+      disp.forEach(d => {
+      stato += `${new Date(d.data).toLocaleDateString('it-IT')}<br>`;
       });
-      break;
+      stato += `</div>`;
+
+    }
+  
+    if (venduto) {
+      const contratto = contratti.find(c => c.numProgr == venduto.contratto);
+      const clientiContratto = (contratto?.stipulatoDa || []).map(cod => {
+        const cliente = clienti.find(cl => cl.codice === cod);
+        return cliente ? `${cliente.nome} ${cliente.cognome}` : cod;
+      }).join(", ") || "Cliente sconosciuto";
+  
+      stato += `<div class="occupato"><strong>Occupato</strong><br>
+        ${new Date(venduto.data).toLocaleDateString('it-IT')}<br>
+        Cliente: ${clientiContratto}
+      </div>`;
+    }
+  
+    if (!stato) {
+      stato = `<div class="nessuno"><em>Nessuna informazione sulla disponibilità.</em></div>`;
+    }
+  
+    div.innerHTML = `
+      <div class="info-ombrellone">${dettagli}</div>
+      <div class="stato-ombrellone">${stato}</div>
+    `;
+    container.appendChild(div);
+  }); break;
 
     case "tipologie":
       if (tipologie.length === 0) return container.innerHTML = "<p>Nessuna tipologia disponibile.</p>";
@@ -349,7 +451,6 @@ document.getElementById("filtroForm").addEventListener("submit", function (e) {
 
   const formData = new FormData(this);
   const dataInizio = formData.get("dataInizio");
-  const dataFine = formData.get("dataFine");
   const settore = formData.get("settore");
   const fila = formData.get("fila");
   const tipologia = formData.get("tipologia");
@@ -361,51 +462,113 @@ document.getElementById("filtroForm").addEventListener("submit", function (e) {
   const container = document.getElementById("risultati");
   container.innerHTML = "<h3>Risultati Filtrati</h3>";
 
-  let risultati = contratti.filter(c => {
-    const dataContratto = new Date(c.data);
-    if (dataInizio && dataContratto < new Date(dataInizio)) return false;
-    if (dataFine && dataContratto > new Date(dataFine)) return false;
+  // Controlla se sei nella vista "ombrelloni"
+  const urlParams = new URLSearchParams(window.location.search);
+  const view = urlParams.get('view');
 
-    if (c.importo < prezzoMin || c.importo > prezzoMax) return false;
+  if (view === 'ombrelloni') {
+    let risultati = ombrelloni.filter(o => {
+      if (settore && o.settore !== settore) return false;
+      if (fila && o.fila != fila) return false;
+      if (tipologia && o.tipologia !== tipologia) return false;
+      return true;
+    });
 
-    if (tipoTariffa) {
-      const haTariffa = tariffe.find(t => t.tipoTariffa === tipoTariffa && contratti.find(ct => ct.numero === c.numero));
-      if (!haTariffa) return false;
+    if (risultati.length === 0) {
+      container.innerHTML += "<p>Nessun ombrellone trovato con i filtri selezionati.</p>";
+      return;
     }
 
-    if (tipoTariffa === "Abbonamento" && c.giorni.length < numMinGiorni) return false;
+    risultati.forEach(o => {
+      const div = document.createElement("div");
+      div.classList.add("ombrellone-box");
+    
+      const dettagli = `
+        <strong>Ombrellone #${o.id}</strong><br>
+        Settore: ${o.settore} <br>
+        Fila: ${o.fila}, numFila: ${o.ordine}<br>
+        Tipologia: ${o.tipologia}
+      `;
+    
+      let stato = "";
+    
+      const disp = disponibilita.filter(d => d.idOmbrellone === o.id);
+      const venduto = venduti.find(v => v.idOmbrellone === o.id);
+    
+      if (disp.length > 0) {
+        stato += `<div class="libero"><strong>Libero</strong><br>`;
+        disp.forEach(d => {
+          stato += `${new Date(d.data).toLocaleDateString('it-IT')}<br>`;
+        });
+        stato += `</div>`;
+      }
+    
+      if (venduto) {
+        const contratto = contratti.find(c => c.numProgr == venduto.contratto);
+        const clientiContratto = (contratto?.stipulatoDa || []).map(cod => {
+          const cliente = clienti.find(cl => cl.codice === cod);
+          return cliente ? `${cliente.nome} ${cliente.cognome}` : cod;
+        }).join(", ") || "Cliente sconosciuto";
+    
+        stato += `<div class="occupato"><strong>Occupato</strong><br>
+          ${new Date(venduto.data).toLocaleDateString('it-IT')}<br>
+          Cliente: ${clientiContratto}
+        </div>`;
+      }
+    
+      if (!stato) {
+        stato = `<div class="nessuno"><em>Nessuna informazione sulla disponibilità.</em></div>`;
+      }
+    
+      div.innerHTML = `
+        <div class="info-ombrellone">${dettagli}</div>
+        <div class="stato-ombrellone">${stato}</div>
+      `;
+      container.appendChild(div);
+    });
+    
+  } else {
+    // Altrimenti filtra i contratti (comportamento attuale)
+    let risultati = contratti.filter(c => {
+      const dataContratto = new Date(c.data);
+      if (dataInizio && dataContratto < new Date(dataInizio)) return false;
 
-    return true;
-  });
+      if (c.importo < prezzoMin || c.importo > prezzoMax) return false;
 
-  if (settore || fila || tipologia) {
-    risultati = risultati.filter(c => {
-      const ombrellone = ombrelloni.find(o => 
-        (!settore || o.settore === settore) &&
-        (!fila || o.fila == fila) &&
-        (!tipologia || o.tipologia === tipologia)
-      );
-      return ombrellone;
+      if (tipoTariffa === "Abbonamento" && c.stipulatoDa.length < numMinGiorni) return false;
+
+      return true;
+    });
+
+    if (settore || fila || tipologia) {
+      risultati = risultati.filter(c => {
+        const ombrellone = ombrelloni.find(o => 
+          (!settore || o.settore === settore) &&
+          (!fila || o.fila == fila) &&
+          (!tipologia || o.tipologia === tipologia)
+        );
+        return ombrellone;
+      });
+    }
+
+    if (risultati.length === 0) {
+      container.innerHTML += "<p>Nessun risultato trovato con i filtri selezionati.</p>";
+      return;
+    }
+
+    risultati.forEach(c => {
+      const formattedDate = new Date(c.data).toLocaleDateString("it-IT");
+      const div = document.createElement("div");
+      div.innerHTML = `
+        <strong>Contratto #${c.numProgr}</strong><br>
+        Data: ${formattedDate}, Importo: €${c.importo.toFixed(2)}<br>
+        Giorni: ${c.stipulatoDa.join(", ")}<br>
+        <hr>`;
+      container.appendChild(div);
     });
   }
-
-  if (risultati.length === 0) {
-    container.innerHTML += "<p>Nessun risultato trovato con i filtri selezionati.</p>";
-    return;
-  }
-
-  risultati.forEach(c => {
-    const formattedDate = new Date(c.data).toLocaleDateString("it-IT");
-    const div = document.createElement("div");
-    div.innerHTML = `
-      <strong>Contratto #${c.numProgr}</strong><br>
-      Data: ${formattedDate}, Importo: €${c.importo.toFixed(2)}<br>
-      Giorni: ${c.stipulatoDa.join(", ")}<br>
-      <hr>
-    `;
-    container.appendChild(div);
-  });
 });
+
 
 document.getElementById("tipoTariffa").addEventListener("change", function () {
   const isAbbonamento = this.value === "Abbonamento";

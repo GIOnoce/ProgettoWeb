@@ -17,62 +17,57 @@
       <div class="container">
         <aside class="left">
           <h2>Filtra Ricerca</h2>
-  
-          <form id="filtroForm">
-            <!-- Filtro per periodo -->
-            <label>Data Inizio:
-              <input type="date" name="dataInizio" />
-            </label><br />
-          
-            <label>Data Fine:
-              <input type="date" name="dataFine" />
-            </label><br />
-          
-            <!-- Filtro per settore -->
-            <label>Settore Spiaggia:
-              <select name="settore">
-                <option value="">Tutti</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-              </select>
-            </label><br />
-          
-            <!-- Filtro per fila -->
-            <label>Numero di Fila:
-              <input type="number" name="fila" min="1" max="10" placeholder="Fila (1-10)" />
-            </label><br />
-          
-            <!-- Filtro per tipologia -->
-            <label>Tipologia Ombrellone:
-              <select name="tipologia">
-                <option value="">Tutte</option>
-                <option value="Sdraio">Sdraio</option>
-                <option value="Lettino">Lettino</option>
-                <option value="Cabina Inclusa">Cabina Inclusa</option>
-              </select>
-            </label><br />
-          
-            <!-- Filtro per tipo tariffa -->
-            <label>Tipo di Tariffa:
-              <select name="tipoTariffa" id="tipoTariffa">
-                <option value="">Tutti</option>
-                <option value="Giornaliera">Giornaliera</option>
-                <option value="Abbonamento">Abbonamento</option>
-              </select>
-            </label><br />
-          
-            <!-- Filtro per numero minimo giorni (solo se abbonamento) -->
-            <label id="labelMinGiorni" style="display: none;">Numero Minimo Giorni:
-              <input type="number" name="numMinGiorni" id="numMinGiorni" min="1" placeholder="Solo per Abbonamenti" />
-            </label><br />
-          
-            <!-- Pulsante per cercare -->
-            <button type="submit">🔍 Cerca</button>
-          </form>
-          
-          
-                 
+<form id="filtroForm">
+
+  <!-- Filtro per data (contratto o disponibilità) -->
+  <label>Data Inizio:
+    <input type="date" name="dataInizio" />
+  </label>
+
+  <!-- Filtro per ombrellone -->
+  <div class="settore-fila-row">
+    <label class="half">
+      Settore:
+      <select name="settore">
+        <option value="">Tutti</option>
+        <option value="A">A</option>
+        <option value="B">B</option>
+        <option value="C">C</option>
+      </select>
+    </label>
+
+    <label class="half">
+      Fila:
+      <input type="number" name="fila" min="1" max="10" placeholder="Es. 3" />
+    </label>
+  </div>
+
+  <!-- Filtro per tipologia -->
+  <label>Tipologia:
+    <select name="tipologia">
+      <option value="">Tutte</option>
+      <option value="T1">Lettino</option>
+      <option value="T2">Sdraio</option>
+      <option value="T3">Cabina Inclusa</option>
+    </select>
+  </label>
+
+  <!-- Filtro per tipo tariffa -->
+  <label>Tipo Tariffa:
+    <select name="tipoTariffa" id="tipoTariffa">
+      <option value="">Tutte</option>
+      <option value="Giornaliera">Giornaliera</option>
+      <option value="Abbonamento">Abbonamento</option>
+    </select>
+  </label>
+
+  <!-- Filtro per minimo giorni solo per abbonamenti -->
+  <label id="labelMinGiorni" style="display: none;">Minimo Giorni:
+    <input type="number" name="minGiorni" id="minGiorni" min="1" placeholder="Es. 3" />
+  </label>
+
+  <button type="submit">🔍 Cerca</button>
+</form>
           
         </aside>
         
