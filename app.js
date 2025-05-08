@@ -342,8 +342,8 @@ function mostraLista(tipo) {
             `<strong>Contratto #${c.numProgr}</strong><br>
             Data: ${formattedDate}, Importo: €${c.importo.toFixed(2)}<br>  <!-- Usa toFixed per visualizzare 2 decimali -->
             Stipulato da: ${c.stipulatoDa.join(", ")}<br>
-            <button onclick="modificaContratto('${c.numero}')">Modifica</button>
-            <button onclick="eliminaContratto('${c.numero}')">Elimina</button>
+            <button onclick="modificaContratto('${c.numProgr}')">Modifica</button>
+            <button onclick="eliminaContratto('${c.numProgr}')">Elimina</button>
             <hr>`;
           container.appendChild(div);
         });
@@ -567,10 +567,4 @@ document.getElementById("filtroForm").addEventListener("submit", function (e) {
       container.appendChild(div);
     });
   }
-});
-
-
-document.getElementById("tipoTariffa").addEventListener("change", function () {
-  const isAbbonamento = this.value === "Abbonamento";
-  document.getElementById("labelMinGiorni").style.display = isAbbonamento ? "block" : "none";
 });
