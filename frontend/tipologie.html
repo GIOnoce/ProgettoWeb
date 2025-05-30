@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tipologie Tariffa - Gestione Ombrelloni</title>
+  <link rel="stylesheet" href="stile_tipologie.css" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div class="text-container">
+      <h1>Gestione Ombrelloni</h1>
+      <p>Amministrazione affitti e tariffe</p>
+    </div>
+    <img class="logo" src="logo.jpg" alt="Logo">
+  </header>
+  
+  <div class="container">
+    <main>
+      <h2><i class="fas fa-tags"></i> Tipologie Tariffa</h2>
+      <div id="dinamicView" class="dinamic-view">
+        <!-- CONTENUTO RIMOSSO - Ora viene generato dal JavaScript -->
+        <div id="risultati">
+          <!-- Il JavaScript inserirà qui il contenuto delle tipologie -->
+        </div>
+      </div>
+    </main>
+    
+    <aside class="right">
+      <h2>Navigazione</h2>
+      <ul>
+        <li><a href="home.html"><button><i class="fas fa-home"></i>HOME</button></a></li>
+        <li><a href="contratti.html?view=contratti"><button><i class="fas fa-scroll"></i>Contratti</button></a></li>
+        <li><a href="ombrelloni.html?view=ombrelloni"><button><i class="fas fa-umbrella-beach"></i>Ombrelloni</button></a></li>
+        <li><a href="tipologie.html?view=tipologie"><button class="active-button"><i class="fas fa-tags"></i>Tipologie tariffa</button></a></li>
+      </ul>
+      
+      <!-- Sezione Statistiche -->
+      <div class="stats-section">
+        <h3><i class="fas fa-chart-line"></i> Statistiche Sistema</h3>
+        <div class="stat-item">
+          <span>Contratti Attivi</span>
+          <span class="stat-value" id="contratti-attivi">Caricando...</span>
+        </div>
+        <div class="stat-item">
+          <span>Incassi Totali</span>
+          <span class="stat-value" id="incassi-totali">Caricando...</span>
+        </div>
+      </div>
+    </aside>
+  </div>
+  
+  <footer>
+    <p>&copy; 2025 - Progetto Universitario - Gestione Ombrelloni</p>
+    <div>
+      <a href="#"><i class="fab fa-facebook"></i> Facebook</a> | 
+      <a href="#"><i class="fab fa-instagram"></i> Instagram</a> |
+      <a href="#"><i class="fab fa-linkedin"></i> LinkedIn</a>
+    </div>
+  </footer>
+  <script src="app.js"></script>
+</body>
+</html>

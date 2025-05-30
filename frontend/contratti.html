@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Contratti</title>
+  <link rel="stylesheet" href="stile_contratti.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.1/xlsx.full.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+  <header>
+    <div class="text-container">
+      <h1>Gestione Ombrelloni</h1>
+      <p>Amministrazione affitti e tariffe</p>
+    </div>
+    <img class="logo" src="logo.jpg" alt="Logo">
+  </header>
+    <div class="container">
+      <aside class="left">
+        <h2>Filtra Ricerca</h2>
+
+        <form id="filtroForm">
+          <!-- Filtro per data contratto -->
+          <label for="dataInizioContratto">Data Contratto:
+          <input type="date" id="dataInizioContratto" name="dataInizio" min="2025-06-01" max="2025-09-15" />
+          </label>
+        
+          <!-- Filtro per cliente -->
+          <label for="cliente">Cliente:
+          <input type="text" id="cliente" name="cliente" placeholder="Inserisci Cliente" />
+          <button type="submit">🔍 Cerca</button>
+         </label>
+        </form>
+        
+      </aside>
+      <main>
+        <h2>Risultati</h2>
+        <div id="dinamicView" class="dinamic-view">
+          <div id="risultati" class="scroll-container">
+            <!-- I contratti o contenuti verranno inseriti qui -->
+          </div>
+        </div>
+      </main>
+      <aside class="right">
+        <h2>Navigazione</h2>
+        <ul>
+           <li><a href="home.html"><button class="active-button"><i class="fas fa-home"></i>  HOME</button></a></li>
+          <li><a href="contratti.html?view=contratti"><button><i class="fas fa-file-contract"></i>  Contratti</button></a></li>
+          <li><a href="ombrelloni.html?view=ombrelloni"><button><i class="fas fa-umbrella-beach"></i>  Ombrelloni</button></a></li>
+          <li><a href="tipologie.html?view=tipologie"><button><i class="fas fa-tags"></i>  Tipologie Tariffa</button></a></li>
+        </ul>
+      </aside>
+    </div>
+    <footer>
+      <p>&copy; 2025 - Progetto Universitario - Gestione Ombrelloni</p>
+      <div>
+        <a href="#">Facebook</a> | 
+        <a href="#">Instagram</a> |
+        <a href="#">LinkedIn</a>
+      </div>
+    </footer>
+  <script src="app.js"></script>
+</body>
+</html>
