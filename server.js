@@ -24,9 +24,8 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Servire i file statici dalla cartella 'frontend' 
-// Punta alla cartella frontend che è al livello superiore
-app.use(express.static(path.join(__dirname, '..', 'frontend')));
+// Servire i file statici dalla cartella 'frontend'
+app.use(express.static(path.join(__dirname, 'frontend')));
 
 // Connect to MongoDB Atlas
 async function connectToMongoDB() {
@@ -63,9 +62,9 @@ const ensureArrayBackend = (value) => {
 // Generate a random ID for new items
 const generateId = () => Math.floor(Math.random() * 1000000);
 
-// Serve il sito principale - punta al file home.html nella cartella frontend
+// Serve il sito principale - serve home.html dalla cartella frontend
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'frontend', 'home.html'));
+  res.sendFile(path.join(__dirname, 'frontend', 'home.html'));
 });
 
 // Health check endpoint - spostato su /api/status
@@ -298,21 +297,214 @@ app.get('/api/Tipologie', async (req, res) => {
     }
 });
 
-// GET endpoint for tariffe
+// MODIFICHE AL BACKEND - Node.js/Express
+
+// 1. MIGLIORA L'ENDPOINT TARIFFE ESISTENTE
 app.get('/api/Tariffe', async (req, res) => {
     try {
         const tariffe = await db.collection('tariffa').find({}).toArray();
-        res.json(tariffe);
+        
+        // Log per debug
+        console.log(`Trovate ${tariffe.length} tariffe nel database`);
+        if (tariffe.length > 0) {
+            console.log('Prima tariffa:', tariffe[0]);
+        }
+        
+        // Trasforma le date in formato corretto e assicura che i prezzi siano numerici
+        const tariffeProcessed = tariffe.map(t => ({
+            ...t,
+            prezzo: parseFloat(t.prezzo) || 0,
+            dataInizio: t.dataInizio ? new Date(t.dataInizio).toISOString() : null,
+            dataFine: t.dataFine ? new Date(t.dataFine).toISOString() : null
+        }));
+        
+        res.json(tariffeProcessed);
     } catch (error) {
         console.error('Error retrieving tariffe:', error);
-        res.status(500).json({ error: 'Failed to retrieve tariffe' });
+        res.status(500).json({ error: 'Failed to retrieve tariffe', details: error.message });
     }
 });
 
-// Fallback per tutte le altre route che non sono API - serve sempre home.html dalla cartella frontend
+// 2. AGGIUNGI NUOVO ENDPOINT PER CALCOLO PREZZO SPECIFICO
+app.post('/api/calcola-prezzo', async (req, res) => {
+    try {
+        const { tipologia, dataInizio, dataFine, tipoTariffa } = req.body;
+        
+        if (!tipologia || !dataInizio || !tipoTariffa) {
+            return res.status(400).json({ 
+                error: 'Parametri mancanti', 
+                required: ['tipologia', 'dataInizio', 'tipoTariffa'] 
+            });
+        }
+        
+        const startDate = new Date(dataInizio);
+        const endDate = dataFine ? new Date(dataFine) : new Date(dataInizio);
+        
+        // Trova tariffe applicabili
+        const query = {
+            $and: [
+                {
+                    $or: [
+                        { codice: tipologia },
+                        { codTipologia: tipologia },
+                        { tipologia: tipologia }
+                    ]
+                },
+                { tipo: tipoTariffa },
+                {
+                    $or: [
+                        { dataInizio: { $exists: false } },
+                        { dataInizio: null },
+                        { dataInizio: { $lte: endDate } }
+                    ]
+                },
+                {
+                    $or: [
+                        { dataFine: { $exists: false } },
+                        { dataFine: null },
+                        { dataFine: { $gte: startDate } }
+                    ]
+                }
+            ]
+        };
+        
+        const tariffe = await db.collection('tariffa').find(query).toArray();
+        
+        let prezzoTotale = 0;
+        const giorni = Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+        
+        if (tariffe.length > 0) {
+            // Usa la tariffa più specifica (con range di date più piccolo)
+            const tariffa = tariffe.reduce((best, curr) => {
+                const getRangeSize = (t) => {
+                    const start = t.dataInizio ? new Date(t.dataInizio) : new Date('1900-01-01');
+                    const end = t.dataFine ? new Date(t.dataFine) : new Date('2100-12-31');
+                    return end - start;
+                };
+                return getRangeSize(curr) < getRangeSize(best) ? curr : best;
+            });
+            
+            const prezzoGiornaliero = parseFloat(tariffa.prezzo) || 0;
+            prezzoTotale = prezzoGiornaliero * giorni;
+            
+            // Applica sconti per abbonamenti
+            if (tipoTariffa === 'Abbonamento') {
+                if (giorni >= 30) {
+                    prezzoTotale *= 0.7; // 30% sconto
+                } else if (giorni >= 14) {
+                    prezzoTotale *= 0.8; // 20% sconto
+                } else if (giorni >= 7) {
+                    prezzoTotale *= 0.9; // 10% sconto
+                }
+            }
+        }
+        
+        res.json({
+            tipologia,
+            dataInizio,
+            dataFine: dataFine || dataInizio,
+            tipoTariffa,
+            giorni,
+            prezzoTotale: Math.round(prezzoTotale * 100) / 100,
+            tariffeApplicabili: tariffe.length,
+            tariffa: tariffe.length > 0 ? tariffe[0] : null
+        });
+        
+    } catch (error) {
+        console.error('Error calculating price:', error);
+        res.status(500).json({ error: 'Failed to calculate price', details: error.message });
+    }
+});
+
+// 3. AGGIUNGI ENDPOINT PER CREARE TARIFFE DI TEST (per debug)
+app.post('/api/tariffe-test', async (req, res) => {
+    try {
+        const tariffeTest = [
+            {
+                codice: 'T1',
+                prezzo: 15.00,
+                tipo: 'Giornaliera',
+                dataInizio: new Date('2024-01-01'),
+                dataFine: new Date('2024-12-31')
+            },
+            {
+                codice: 'T2',
+                prezzo: 20.00,
+                tipo: 'Giornaliera',
+                dataInizio: new Date('2024-01-01'),
+                dataFine: new Date('2024-12-31')
+            },
+            {
+                codice: 'T3',
+                prezzo: 25.00,
+                tipo: 'Giornaliera',
+                dataInizio: new Date('2024-01-01'),
+                dataFine: new Date('2024-12-31')
+            },
+            {
+                codice: 'T1',
+                prezzo: 12.00,
+                tipo: 'Abbonamento',
+                dataInizio: new Date('2024-01-01'),
+                dataFine: new Date('2024-12-31')
+            },
+            {
+                codice: 'T2',
+                prezzo: 17.00,
+                tipo: 'Abbonamento',
+                dataInizio: new Date('2024-01-01'),
+                dataFine: new Date('2024-12-31')
+            },
+            {
+                codice: 'T3',
+                prezzo: 22.00,
+                tipo: 'Abbonamento',
+                dataInizio: new Date('2024-01-01'),
+                dataFine: new Date('2024-12-31')
+            }
+        ];
+        
+        const result = await db.collection('tariffa').insertMany(tariffeTest);
+        res.json({ 
+            message: 'Tariffe di test create', 
+            inserted: result.insertedCount,
+            tariffe: tariffeTest 
+        });
+        
+    } catch (error) {
+        console.error('Error creating test tariffe:', error);
+        res.status(500).json({ error: 'Failed to create test tariffe', details: error.message });
+    }
+});
+
+// 4. AGGIUNGI ENDPOINT PER VERIFICARE STATO DATABASE
+app.get('/api/debug/database-status', async (req, res) => {
+    try {
+        const collections = await db.listCollections().toArray();
+        const tariffeCount = await db.collection('tariffa').countDocuments();
+        const ombrelloniCount = await db.collection('ombrelloni').countDocuments();
+        const clientiCount = await db.collection('clienti').countDocuments();
+        
+        res.json({
+            collections: collections.map(c => c.name),
+            counts: {
+                tariffe: tariffeCount,
+                ombrelloni: ombrelloniCount,
+                clienti: clientiCount
+            },
+            timestamp: new Date().toISOString()
+        });
+        
+    } catch (error) {
+        console.error('Error checking database status:', error);
+        res.status(500).json({ error: 'Failed to check database status', details: error.message });
+    }
+});
+
+// Fallback per tutte le altre route che non sono API - serve sempre home.html
 app.get('*', (req, res) => {
   if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(__dirname, '..', 'frontend', 'home.html'));
+    res.sendFile(path.join(__dirname, 'frontend', 'home.html'));
   }
 });
 

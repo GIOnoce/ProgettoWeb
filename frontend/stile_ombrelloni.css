@@ -189,9 +189,11 @@ main {
 }
 
 .right {
-  height: 400px;
   width: 22%;
   margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  height: fit-content;
 }
 
 /* ===== TITOLI SEZIONI ===== */
@@ -331,7 +333,7 @@ button:active,
 .right ul {
   list-style: none;
   padding: 0;
-  margin: 0;
+  margin: 0 0 2rem 0;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
@@ -372,6 +374,107 @@ button:active,
   background: linear-gradient(90deg, transparent, #0097a7, transparent);
   margin: 1.5rem 0;
   border-radius: 1px;
+}
+
+/* ===== SEZIONE STATISTICHE ===== */
+.stats-section {
+  background: linear-gradient(145deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 
+    0 2px 8px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  border-left: 4px solid #28a745;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  position: relative;
+  overflow: hidden;
+}
+
+.stats-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 100%;
+  background: linear-gradient(45deg, transparent 30%, rgba(40, 167, 69, 0.05) 70%);
+  transform: skewX(-15deg);
+  transform-origin: top right;
+  pointer-events: none;
+}
+
+.stats-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 4px 15px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+  border-left-color: #20c997;
+}
+
+.stats-section h3 {
+  color: #28a745;
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.stats-section h3 i {
+  font-size: 1.2rem;
+  color: #20c997;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.stat-item:last-child {
+  border-bottom: none;
+}
+
+.stat-item:hover {
+  background: rgba(40, 167, 69, 0.05);
+  border-radius: 6px;
+}
+
+.stat-item span {
+  color: #495057;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.stat-value {
+  color: #28a745 !important;
+  font-weight: 700 !important;
+  font-size: 1.1rem !important;
+  background: linear-gradient(45deg, #28a745, #20c997);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+}
+
+.stat-value.loading {
+  color: #6c757d !important;
+  background: none !important;
+  -webkit-text-fill-color: #6c757d !important;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 /* ===== FOOTER ===== */
@@ -418,7 +521,7 @@ footer a:hover::after {
 /* ===== VISTA DINAMICA ===== */
 .dinamic-view {
   width: 100%;
-  height: 310px;
+  height: 380px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 243, 244, 0.95) 100%);
   border-radius: 12px;
   margin: 1rem 0 20px;
@@ -713,119 +816,128 @@ footer a:hover::after {
   width: 100%;
 }
 
-/* ===== RESPONSIVE DESIGN ===== */
-@media (max-width: 1200px) {
-  .container {
-    max-width: 100%;
-    padding: 1rem;
-  }
-  
-  header {
-    margin: 0.5rem;
-    padding: 1.2rem 1.5rem;
-  }
+/* ===== CONFERMA ACQUISTO ===== */
+.acquista-confirmation {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 20px;
 }
 
-@media (max-width: 768px) {
-  .container {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
-  .left, 
-  .right, 
-  main {
-    width: 100%;
-  }
-  
-  .right {
-    height: auto;
-  }
-
-  header {
-    flex-direction: column;
-    text-align: center;
-    gap: 1rem;
-  }
-  
-  header .text-container {
-    text-align: center;
-  }
-  
-  header img.logo {
-    margin: 0;
-  }
-  
-  header h1 {
-    font-size: 1.8rem;
-  }
-
-  footer {
-    padding: 1.5rem 1rem;
-    margin: 0.5rem;
-  }
-  
-  .dinamic-view {
-    height: 280px;
-    padding: 1rem;
-  }
-  
-  .ombrellone-box {
-    flex-direction: column;
-    gap: 1rem;
-  }
-  
-  .stato-ombrellone {
-    justify-content: flex-start;
-  }
-  
-  .settore-fila-row {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
+.riepilogo-card {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  margin: 20px 0;
+  overflow: hidden;
 }
 
-@media (max-width: 480px) {
-  body {
-    font-size: 14px;
-  }
-  
-  header {
-    padding: 1rem;
-    margin: 0.25rem;
-  }
-  
-  header h1 {
-    font-size: 1.5rem;
-  }
-  
-  header p {
-    font-size: 1rem;
-  }
-  
-  .container {
-    padding: 0.5rem;
-  }
-  
-  .left, 
-  .right, 
-  main {
-    padding: 1rem;
-  }
-  
-  button,
-  .right ul li button {
-    padding: 10px 16px;
-    font-size: 0.95rem;
-  }
-  
-  form input, 
-  form select {
-    padding: 8px 10px;
-    font-size: 0.9rem;
-  }
-  
-  .dinamic-view {
-    height: 230px;
-  }
+.riepilogo-header {
+  background: #007bff;
+  color: white;
+  padding: 15px 20px;
+  margin: 0;
 }
+
+.riepilogo-header h4 {
+  margin: 0;
+  font-size: 1.2em;
+}
+
+.riepilogo-content {
+  padding: 20px;
+}
+
+.riepilogo-section {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.riepilogo-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.riepilogo-section h5 {
+  color: #495057;
+  margin: 0 0 15px 0;
+  font-size: 1.1em;
+  font-weight: 600;
+}
+
+.riepilogo-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px dotted #dee2e6;
+}
+      
+      .riepilogo-row:last-child {
+        border-bottom: none;
+      }
+      
+      .riepilogo-row.totale {
+        margin-top: 10px;
+        padding-top: 15px;
+        border-top: 2px solid #007bff;
+        border-bottom: none;
+        font-weight: 600;
+        font-size: 1.1em;
+      }
+      
+      .riepilogo-row .label {
+        color: #6c757d;
+        font-weight: 500;
+      }
+      
+      .riepilogo-row .value {
+        font-weight: 600;
+        color: #212529;
+      }
+      
+      .riepilogo-row .value.price {
+        color: #28a745;
+        font-size: 1.2em;
+      }
+      
+      .confirmation-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: center;
+        margin-top: 30px;
+      }
+      
+      .btn-confirm-acquista {
+        background: #28a745;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 5px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      
+      .btn-confirm-acquista:hover {
+        background: #218838;
+      }
+      
+      .btn-cancel-acquista {
+        background: #6c757d;
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 5px;
+        font-size: 1.1em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      
+      .btn-cancel-acquista:hover {
+        background: #5a6268;
+      }
+
+      
