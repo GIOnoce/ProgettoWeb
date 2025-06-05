@@ -177,7 +177,7 @@ main:hover {
 }
 
 .left {
-  width: 22%;
+  width: 24%;
 }
 
 main {
@@ -621,7 +621,6 @@ footer a:hover::after {
   }
 }
 
-/* Styling per contratti migliorati */
 .contratto-item {
   background: white;
   border: 1px solid #e0e0e0;
@@ -780,7 +779,6 @@ footer a:hover::after {
   }
 }
 
-/* Stili per la conferma di eliminazione inline */
 .contratto-delete-confirmation {
   background: linear-gradient(135deg, #fee, #fdd);
   border: 2px solid #e53e3e;

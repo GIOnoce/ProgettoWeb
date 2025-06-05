@@ -54,24 +54,20 @@
 
                 <!-- Filtro per tipo tariffa -->
                 <label>Tipo Tariffa:
-                    <select name="tipoTariffa" id="tipoTariffa">
-                        <option value="">Tutte</option>
+                    <select name="tipoTariffa" id="tipoTariffa" >
+                        <option value="">Inserire tariffa</option>
                         <option value="Giornaliera">Giornaliera</option>
                         <option value="Abbonamento">Abbonamento</option>
                     </select>
                 </label>
 
-                <!-- Filtro per minimo giorni solo per abbonamenti -->
-                <label id="labelMinGiorni" style="display: none;">Minimo Giorni:
-                    <input type="number" name="minGiorni" id="minGiorni" min="7" max="7" value="7" readonly />
-                </label>
 
                 <button type="submit">🔍 Cerca</button>
             </form>
         </aside>
         
         <main>
-            <h2>Risultati</h2>
+            <h2>Ombrelloni Occupati</h2>
             <div id="dinamicView" class="dinamic-view">
                 <div id="risultati" class="scroll-container">
                     <!-- I contratti o contenuti verranno inseriti qui -->

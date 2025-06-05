@@ -18,7 +18,7 @@
   </header>
     <div class="container">
       <aside class="left">
-        <h2>Filtra Ricerca</h2>
+        <h2>Ricerca Contratti</h2>
 
         <form id="filtroForm">
           <!-- Filtro per data contratto -->
@@ -28,14 +28,17 @@
         
           <!-- Filtro per cliente -->
           <label for="cliente">Cliente:
-          <input type="text" id="cliente" name="cliente" placeholder="Inserisci Cliente" />
+          <select id="cliente" name="cliente">
+          <option value="">Tutti</option>
+           <!-- Le opzioni verranno popolate automaticamente -->
+          </select>
           <button type="submit">🔍 Cerca</button>
          </label>
         </form>
         
       </aside>
       <main>
-        <h2>Risultati</h2>
+        <h2>Contratti attivi</h2>
         <div id="dinamicView" class="dinamic-view">
           <div id="risultati" class="scroll-container">
             <!-- I contratti o contenuti verranno inseriti qui -->

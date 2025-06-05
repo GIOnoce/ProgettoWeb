@@ -2,528 +2,342 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { MongoClient, ObjectId } = require('mongodb');
-const { v4: uuidv4 } = require('uuid');
 
 const app = express();
-const port = 3000;
-
-// MongoDB Atlas connection string - REPLACE WITH YOUR CONNECTION STRING
-const MONGODB_URI = 'mongodb+srv://gnocerino:Chitarra03@clusterweb.ihyfzo5.mongodb.net/?retryWrites=true&w=majority&appName=ClusterWeb';
+const port = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://gnocerino:Chitarra03@clusterweb.ihyfzo5.mongodb.net/?retryWrites=true&w=majority&appName=ClusterWeb';
 const DATABASE_NAME = 'DatabaseSpiaggia';
 
-let db;
-let client;
+let db, client;
 
-// Configure CORS
-app.use(cors({
-  origin: '*',
-  methods: ['GET', 'PUT', 'POST', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
+// Middleware
+app.use(cors({ origin: '*', methods: ['GET', 'PUT', 'POST', 'DELETE'], allowedHeaders: ['Content-Type', 'Authorization'] }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// Servire i file statici dalla cartella 'frontend'
 app.use(express.static(path.join(__dirname, 'frontend')));
 
-// Connect to MongoDB Atlas
-async function connectToMongoDB() {
-  try {
-    client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    db = client.db(DATABASE_NAME);
-    console.log('Connected to MongoDB Atlas');
-    
-    // Test the connection by listing collections
-    const collections = await db.listCollections().toArray();
-    console.log('Available collections:', collections.map(c => c.name));
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error);
-    process.exit(1);
-  }
-}
-
-// Ensure stipulatoDa is always an array
-const ensureArrayBackend = (value) => {
-    if (!value) return [];
-    if (Array.isArray(value)) return value;
-    
-    if (typeof value === 'string') {
-      if (value.includes(',')) {
-        return value.split(',').map(item => item.trim()).filter(Boolean);
-      }
-      return [value];
-    }
-    
-    return [String(value)];
+// Utilities
+const ensureArray = (value) => !value ? [] : Array.isArray(value) ? value : 
+    typeof value === 'string' && value.includes(',') ? value.split(',').map(s => s.trim()).filter(Boolean) : [String(value)];
+const generateId = () => Math.floor(Math.random() * 1000000);
+const isValidObjectId = (id) => ObjectId.isValid(id);
+const handleError = (res, error, message) => {
+    console.error(message, error);
+    res.status(500).json({ error: message, details: error.message });
 };
 
-// Generate a random ID for new items
-const generateId = () => Math.floor(Math.random() * 1000000);
+// MongoDB connection
+async function connectToMongoDB() {
+    try {
+        client = new MongoClient(MONGODB_URI);
+        await client.connect();
+        db = client.db(DATABASE_NAME);
+        console.log('Connected to MongoDB Atlas');
+        const collections = await db.listCollections().toArray();
+        console.log('Available collections:', collections.map(c => c.name));
+    } catch (error) {
+        console.error('Error connecting to MongoDB:', error);
+        process.exit(1);
+    }
+}
 
-// Serve il sito principale - serve home.html dalla cartella frontend
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'home.html'));
-});
+// Routes
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'frontend', 'home.html')));
+app.get('/api/status', (req, res) => res.json({ status: 'Server running', database: 'MongoDB Atlas' }));
 
-// Health check endpoint - spostato su /api/status
-app.get('/api/status', (req, res) => {
-  res.json({ status: 'Server running', database: 'MongoDB Atlas' });
-});
-
-// GET endpoint to serve all data
+// GET all data
 app.get('/api/data', async (req, res) => {
     try {
-        const data = {
-            ombrelloni: await db.collection('ombrellone').find({}).toArray(),
-            tipologie: await db.collection('tipologia').find({}).toArray(),
-            tariffe: await db.collection('tariffa').find({}).toArray(),
-            contratti: await db.collection('contratto').find({}).toArray(),
-            clienti: await db.collection('cliente').find({}).toArray(),
-            ombrelloneVenduto: await db.collection('ombrelloneVenduto').find({}).toArray(),
-            giornoDisponibilita: await db.collection('giornoDisponibilita').find({}).toArray()
-        };
-
-        // Process contratti to ensure stipulatoDa is always an array
-        data.contratti = data.contratti.map(contract => ({
-            ...contract,
-            stipulatoDa: ensureArrayBackend(contract.stipulatoDa)
+        const collections = ['ombrellone', 'tipologia', 'tariffa', 'contratto', 'cliente', 'ombrelloneVenduto', 'giornoDisponibilita'];
+        const data = {};
+        
+        await Promise.all(collections.map(async (name) => {
+            const key = name === 'ombrellone' ? 'ombrelloni' : 
+                       name === 'tipologia' ? 'tipologie' : 
+                       name === 'tariffa' ? 'tariffe' : 
+                       name === 'contratto' ? 'contratti' : 
+                       name === 'cliente' ? 'clienti' : name;
+            data[key] = await db.collection(name).find({}).toArray();
         }));
 
+        data.contratti = data.contratti.map(contract => ({ ...contract, stipulatoDa: ensureArray(contract.stipulatoDa) }));
         res.json(data);
     } catch (error) {
-        console.error('Error retrieving data:', error);
-        res.status(500).json({ error: 'Failed to retrieve data' });
+        handleError(res, error, 'Failed to retrieve data');
     }
 });
 
-// GET single contract by ID
-app.get('/api/Contratti/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        
-        if (!ObjectId.isValid(id)) {
-            return res.status(400).json({ error: 'Invalid contract ID format' });
-        }
-
-        const contract = await db.collection('contratto').findOne({ 
-            _id: new ObjectId(id) 
-        });
-
-        if (!contract) {
-            return res.status(404).json({ error: `Contract with ID ${id} not found.` });
-        }
-
-        res.json({
-            ...contract,
-            stipulatoDa: ensureArrayBackend(contract.stipulatoDa)
-        });
-    } catch (error) {
-        console.error('Error retrieving contract:', error);
-        res.status(500).json({ error: 'Failed to retrieve contract' });
-    }
-});
-
-// POST endpoint to add a new contract
-app.post('/api/Contratti', async (req, res) => {
-    try {
-        console.log('Received contract data:', req.body);
-        
-        const stipulatoDaArray = ensureArrayBackend(req.body.stipulatoDa);
-        console.log('Processed stipulatoDa:', stipulatoDaArray);
-        
-        const newContract = {
-            numProgr: req.body.numProgr || generateId(),
-            data: req.body.data,
-            importo: parseFloat(req.body.importo),
-            stipulatoDa: stipulatoDaArray
-        };
-
-        console.log('Processed contract data to save:', newContract);
-
-        const result = await db.collection('contratto').insertOne(newContract);
-        
-        if (result.insertedId) {
-            res.status(201).json({
-                ...newContract,
-                _id: result.insertedId,
-                stipulatoDa: stipulatoDaArray
+// Generic CRUD operations
+const createCRUDRoutes = (collectionName, routeName, idField = '_id') => {
+    // GET all with filtering
+    app.get(`/api/${routeName}`, async (req, res) => {
+        try {
+            const filter = {};
+            Object.keys(req.query).forEach(key => {
+                const value = req.query[key];
+                filter[key] = !isNaN(value) ? parseInt(value) : value;
             });
-        } else {
-            res.status(500).json({ error: 'Failed to add new contract.' });
+            
+            const data = await db.collection(collectionName).find(filter).toArray();
+            res.json(data);
+        } catch (error) {
+            handleError(res, error, `Failed to retrieve ${routeName}`);
         }
-    } catch (error) {
-        console.error('Error adding contract:', error);
-        res.status(500).json({ error: 'Failed to add contract: ' + error.message });
-    }
-});
+    });
+    
+    // GET single by ID
+    app.get(`/api/${routeName}/:id`, async (req, res) => {
+        try {
+            const { id } = req.params;
+            if (idField === '_id' && !isValidObjectId(id)) {
+                return res.status(400).json({ error: 'Invalid ID format' });
+            }
 
-// POST endpoint to add a new client
-app.post('/api/Clienti', async (req, res) => {
-    try {
-        console.log('Received client data:', req.body);
-        
-        const newClient = {
-            codice: req.body.codice || `CLI${generateId()}`,
-            nome: req.body.nome,
-            cognome: req.body.cognome,
-            email: req.body.email || '',
-            dataNascita: req.body.dataNascita || null,
-            indirizzo: req.body.indirizzo || ''
-        };
+            const query = idField === '_id' ? { _id: new ObjectId(id) } : { [idField]: id };
+            const item = await db.collection(collectionName).findOne(query);
 
-        console.log('Processed client data to save:', newClient);
+            if (!item) return res.status(404).json({ error: `${routeName} with ID ${id} not found` });
 
-        const result = await db.collection('cliente').insertOne(newClient);
-        
-        if (result.insertedId) {
-            res.status(201).json({
-                ...newClient,
-                _id: result.insertedId
-            });
-        } else {
-            res.status(500).json({ error: 'Failed to add new client.' });
+            if (collectionName === 'contratto') item.stipulatoDa = ensureArray(item.stipulatoDa);
+            res.json(item);
+        } catch (error) {
+            handleError(res, error, `Failed to retrieve ${routeName}`);
         }
-    } catch (error) {
-        console.error('Error adding client:', error);
-        res.status(500).json({ error: 'Failed to add client: ' + error.message });
-    }
-});
+    });
 
-app.put('/api/Contratti/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        console.log(`Updating contract ${id}:`, req.body);
-        
-        if (!ObjectId.isValid(id)) {
-            return res.status(400).json({ error: 'Invalid contract ID format' });
+    // POST new item
+    app.post(`/api/${routeName}`, async (req, res) => {
+        try {
+            const newItem = { ...req.body };
+            
+            if (collectionName === 'contratto') {
+                newItem.numProgr = newItem.numProgr || generateId();
+                newItem.importo = parseFloat(newItem.importo);
+                newItem.stipulatoDa = ensureArray(newItem.stipulatoDa);
+            } else if (collectionName === 'cliente') {
+                newItem.codice = newItem.codice || `CLI${generateId()}`;
+            }
+
+            const result = await db.collection(collectionName).insertOne(newItem);
+            res.status(201).json({ ...newItem, _id: result.insertedId });
+        } catch (error) {
+            handleError(res, error, `Failed to add ${routeName}`);
         }
-        
-        const stipulatoDaArray = ensureArrayBackend(req.body.stipulatoDa);
-        
-        const updatedContractData = {
-            numProgr: req.body.numProgr,
-            data: req.body.data,
-            importo: parseFloat(req.body.importo),
-            stipulatoDa: stipulatoDaArray
-        };
-        
-        const result = await db.collection('contratto').updateOne(
-            { _id: new ObjectId(id) },
-            { $set: updatedContractData }
-        );
+    });
 
-        if (result.matchedCount > 0) {
-            res.json({ ...updatedContractData, _id: id });
-        } else {
-            res.status(404).json({ error: `Contract with ID ${id} not found.` });
+    // PUT update item
+    app.put(`/api/${routeName}/:id`, async (req, res) => {
+        try {
+            const { id } = req.params;
+            if (idField === '_id' && !isValidObjectId(id)) {
+                return res.status(400).json({ error: 'Invalid ID format' });
+            }
+
+            const updateData = { ...req.body };
+            if (collectionName === 'contratto') {
+                updateData.importo = parseFloat(updateData.importo);
+                updateData.stipulatoDa = ensureArray(updateData.stipulatoDa);
+            }
+
+            const query = idField === '_id' ? { _id: new ObjectId(id) } : { [idField]: id };
+            const result = await db.collection(collectionName).updateOne(query, { $set: updateData });
+
+            if (result.matchedCount === 0) {
+                return res.status(404).json({ error: `${routeName} with ID ${id} not found` });
+            }
+
+            res.json({ ...updateData, [idField]: id });
+        } catch (error) {
+            handleError(res, error, `Failed to update ${routeName}`);
         }
-    } catch (error) {
-        console.error('Error updating contract:', error);
-        res.status(500).json({ error: 'Failed to update contract: ' + error.message });
-    }
-});
+    });
 
-// DELETE endpoint to delete by _id
-app.delete('/api/Contratti/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        console.log(`Deleting contract ${id}`);
-        
-        if (!ObjectId.isValid(id)) {
-            return res.status(400).json({ error: 'Invalid contract ID format' });
-        }
-        
-        const result = await db.collection('contratto').deleteOne({
-            _id: new ObjectId(id)
-        });
+    // DELETE item
+    app.delete(`/api/${routeName}/:id`, async (req, res) => {
+        try {
+            const { id } = req.params;
+            if (idField === '_id' && !isValidObjectId(id)) {
+                return res.status(400).json({ error: 'Invalid ID format' });
+            }
 
-        if (result.deletedCount > 0) {
+            const query = idField === '_id' ? { _id: new ObjectId(id) } : { [idField]: id };
+            const result = await db.collection(collectionName).deleteOne(query);
+
+            if (result.deletedCount === 0) {
+                return res.status(404).json({ error: `${routeName} with ID ${id} not found` });
+            }
+
             res.status(204).send();
-        } else {
-            res.status(404).json({ error: `Contract with ID ${id} not found.` });
+        } catch (error) {
+            handleError(res, error, `Failed to delete ${routeName}`);
         }
-    } catch (error) {
-        console.error('Error deleting contract:', error);
-        res.status(500).json({ error: 'Failed to delete contract: ' + error.message });
-    }
-});
+    });
+};
 
-// GET endpoint for Ombrelloni with filtering
-app.get('/api/Ombrelloni', async (req, res) => {
-    try {
-        let filter = {};
-        
-        if (req.query.settore) {
-            filter.settore = req.query.settore;
-        }
-        
-        if (req.query.fila) {
-            filter.fila = parseInt(req.query.fila);
-        }
-        
-        if (req.query.tipologia) {
-            filter.tipologia = req.query.tipologia;
-        }
-        
-        const ombrelloni = await db.collection('ombrellone').find(filter).toArray();
-        res.json(ombrelloni);
-    } catch (error) {
-        console.error('Error retrieving ombrelloni:', error);
-        res.status(500).json({ error: 'Failed to retrieve ombrelloni' });
-    }
-});
+// Create CRUD routes for all collections
+createCRUDRoutes('contratto', 'Contratti');
+createCRUDRoutes('cliente', 'Clienti');
+createCRUDRoutes('ombrellone', 'Ombrelloni');
+createCRUDRoutes('tipologia', 'Tipologie');
+createCRUDRoutes('ombrelloneVenduto', 'ombrelloneVenduto');
 
-// GET endpoint for clients
-app.get('/api/Clienti', async (req, res) => {
-    try {
-        const clients = await db.collection('cliente').find({}).toArray();
-        res.json(clients);
-    } catch (error) {
-        console.error('Error retrieving clients:', error);
-        res.status(500).json({ error: 'Failed to retrieve clients' });
-    }
-});
-
-// GET endpoint for tipologie
-app.get('/api/Tipologie', async (req, res) => {
-    try {
-        const tipologie = await db.collection('tipologia').find({}).toArray();
-        res.json(tipologie);
-    } catch (error) {
-        console.error('Error retrieving tipologie:', error);
-        res.status(500).json({ error: 'Failed to retrieve tipologie' });
-    }
-});
-
-// MODIFICHE AL BACKEND - Node.js/Express
-
-// 1. MIGLIORA L'ENDPOINT TARIFFE ESISTENTE
+// Enhanced Tariffe routes
 app.get('/api/Tariffe', async (req, res) => {
     try {
         const tariffe = await db.collection('tariffa').find({}).toArray();
-        
-        // Log per debug
-        console.log(`Trovate ${tariffe.length} tariffe nel database`);
-        if (tariffe.length > 0) {
-            console.log('Prima tariffa:', tariffe[0]);
-        }
-        
-        // Trasforma le date in formato corretto e assicura che i prezzi siano numerici
-        const tariffeProcessed = tariffe.map(t => ({
+        const processed = tariffe.map(t => ({
             ...t,
             prezzo: parseFloat(t.prezzo) || 0,
             dataInizio: t.dataInizio ? new Date(t.dataInizio).toISOString() : null,
             dataFine: t.dataFine ? new Date(t.dataFine).toISOString() : null
         }));
-        
-        res.json(tariffeProcessed);
+        res.json(processed);
     } catch (error) {
-        console.error('Error retrieving tariffe:', error);
-        res.status(500).json({ error: 'Failed to retrieve tariffe', details: error.message });
+        handleError(res, error, 'Failed to retrieve tariffe');
     }
 });
 
-// 2. AGGIUNGI NUOVO ENDPOINT PER CALCOLO PREZZO SPECIFICO
+// Price calculation
 app.post('/api/calcola-prezzo', async (req, res) => {
     try {
         const { tipologia, dataInizio, dataFine, tipoTariffa } = req.body;
-        
         if (!tipologia || !dataInizio || !tipoTariffa) {
-            return res.status(400).json({ 
-                error: 'Parametri mancanti', 
-                required: ['tipologia', 'dataInizio', 'tipoTariffa'] 
-            });
+            return res.status(400).json({ error: 'Missing parameters', required: ['tipologia', 'dataInizio', 'tipoTariffa'] });
         }
-        
+
         const startDate = new Date(dataInizio);
-        const endDate = dataFine ? new Date(dataFine) : new Date(dataInizio);
-        
-        // Trova tariffe applicabili
+        const endDate = dataFine ? new Date(dataFine) : startDate;
+        const giorni = Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+
         const query = {
             $and: [
-                {
-                    $or: [
-                        { codice: tipologia },
-                        { codTipologia: tipologia },
-                        { tipologia: tipologia }
-                    ]
-                },
+                { $or: [{ codice: tipologia }, { codTipologia: tipologia }, { tipologia }] },
                 { tipo: tipoTariffa },
-                {
-                    $or: [
-                        { dataInizio: { $exists: false } },
-                        { dataInizio: null },
-                        { dataInizio: { $lte: endDate } }
-                    ]
-                },
-                {
-                    $or: [
-                        { dataFine: { $exists: false } },
-                        { dataFine: null },
-                        { dataFine: { $gte: startDate } }
-                    ]
-                }
+                { $or: [{ dataInizio: { $exists: false } }, { dataInizio: null }, { dataInizio: { $lte: endDate } }] },
+                { $or: [{ dataFine: { $exists: false } }, { dataFine: null }, { dataFine: { $gte: startDate } }] }
             ]
         };
-        
+
         const tariffe = await db.collection('tariffa').find(query).toArray();
-        
         let prezzoTotale = 0;
-        const giorni = Math.ceil(Math.abs(endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-        
+
         if (tariffe.length > 0) {
-            // Usa la tariffa più specifica (con range di date più piccolo)
             const tariffa = tariffe.reduce((best, curr) => {
-                const getRangeSize = (t) => {
+                const getRange = (t) => {
                     const start = t.dataInizio ? new Date(t.dataInizio) : new Date('1900-01-01');
                     const end = t.dataFine ? new Date(t.dataFine) : new Date('2100-12-31');
                     return end - start;
                 };
-                return getRangeSize(curr) < getRangeSize(best) ? curr : best;
+                return getRange(curr) < getRange(best) ? curr : best;
             });
-            
-            const prezzoGiornaliero = parseFloat(tariffa.prezzo) || 0;
-            prezzoTotale = prezzoGiornaliero * giorni;
-            
-            // Applica sconti per abbonamenti
+
+            prezzoTotale = (parseFloat(tariffa.prezzo) || 0) * giorni;
+
             if (tipoTariffa === 'Abbonamento') {
-                if (giorni >= 30) {
-                    prezzoTotale *= 0.7; // 30% sconto
-                } else if (giorni >= 14) {
-                    prezzoTotale *= 0.8; // 20% sconto
-                } else if (giorni >= 7) {
-                    prezzoTotale *= 0.9; // 10% sconto
-                }
+                const discount = giorni >= 30 ? 0.7 : giorni >= 14 ? 0.8 : giorni >= 7 ? 0.9 : 1;
+                prezzoTotale *= discount;
             }
         }
-        
+
         res.json({
-            tipologia,
-            dataInizio,
-            dataFine: dataFine || dataInizio,
-            tipoTariffa,
-            giorni,
+            tipologia, dataInizio, dataFine: dataFine || dataInizio, tipoTariffa, giorni,
             prezzoTotale: Math.round(prezzoTotale * 100) / 100,
             tariffeApplicabili: tariffe.length,
-            tariffa: tariffe.length > 0 ? tariffe[0] : null
+            tariffa: tariffe[0] || null
         });
-        
     } catch (error) {
-        console.error('Error calculating price:', error);
-        res.status(500).json({ error: 'Failed to calculate price', details: error.message });
+        handleError(res, error, 'Failed to calculate price');
     }
 });
 
-// 3. AGGIUNGI ENDPOINT PER CREARE TARIFFE DI TEST (per debug)
+// Test and debug routes
 app.post('/api/tariffe-test', async (req, res) => {
     try {
-        const tariffeTest = [
-            {
-                codice: 'T1',
-                prezzo: 15.00,
-                tipo: 'Giornaliera',
-                dataInizio: new Date('2024-01-01'),
-                dataFine: new Date('2024-12-31')
-            },
-            {
-                codice: 'T2',
-                prezzo: 20.00,
-                tipo: 'Giornaliera',
-                dataInizio: new Date('2024-01-01'),
-                dataFine: new Date('2024-12-31')
-            },
-            {
-                codice: 'T3',
-                prezzo: 25.00,
-                tipo: 'Giornaliera',
-                dataInizio: new Date('2024-01-01'),
-                dataFine: new Date('2024-12-31')
-            },
-            {
-                codice: 'T1',
-                prezzo: 12.00,
-                tipo: 'Abbonamento',
-                dataInizio: new Date('2024-01-01'),
-                dataFine: new Date('2024-12-31')
-            },
-            {
-                codice: 'T2',
-                prezzo: 17.00,
-                tipo: 'Abbonamento',
-                dataInizio: new Date('2024-01-01'),
-                dataFine: new Date('2024-12-31')
-            },
-            {
-                codice: 'T3',
-                prezzo: 22.00,
-                tipo: 'Abbonamento',
-                dataInizio: new Date('2024-01-01'),
-                dataFine: new Date('2024-12-31')
-            }
-        ];
+        const tariffeTest = ['T1', 'T2', 'T3'].flatMap(code => 
+            [{ codice: code, prezzo: (code === 'T1' ? 15 : code === 'T2' ? 20 : 25), tipo: 'Giornaliera' },
+             { codice: code, prezzo: (code === 'T1' ? 12 : code === 'T2' ? 17 : 22), tipo: 'Abbonamento' }]
+                .map(t => ({ ...t, dataInizio: new Date('2024-01-01'), dataFine: new Date('2024-12-31') }))
+        );
         
         const result = await db.collection('tariffa').insertMany(tariffeTest);
-        res.json({ 
-            message: 'Tariffe di test create', 
-            inserted: result.insertedCount,
-            tariffe: tariffeTest 
-        });
-        
+        res.json({ message: 'Test tariffe created', inserted: result.insertedCount, tariffe: tariffeTest });
     } catch (error) {
-        console.error('Error creating test tariffe:', error);
-        res.status(500).json({ error: 'Failed to create test tariffe', details: error.message });
+        handleError(res, error, 'Failed to create test tariffe');
     }
 });
 
-// 4. AGGIUNGI ENDPOINT PER VERIFICARE STATO DATABASE
 app.get('/api/debug/database-status', async (req, res) => {
     try {
         const collections = await db.listCollections().toArray();
-        const tariffeCount = await db.collection('tariffa').countDocuments();
-        const ombrelloniCount = await db.collection('ombrelloni').countDocuments();
-        const clientiCount = await db.collection('clienti').countDocuments();
+        const counts = {};
+        await Promise.all(['tariffa', 'ombrellone', 'cliente'].map(async (name) => {
+            counts[name] = await db.collection(name).countDocuments();
+        }));
         
         res.json({
             collections: collections.map(c => c.name),
-            counts: {
-                tariffe: tariffeCount,
-                ombrelloni: ombrelloniCount,
-                clienti: clientiCount
-            },
+            counts,
             timestamp: new Date().toISOString()
         });
-        
     } catch (error) {
-        console.error('Error checking database status:', error);
-        res.status(500).json({ error: 'Failed to check database status', details: error.message });
+        handleError(res, error, 'Failed to check database status');
     }
 });
 
-// Fallback per tutte le altre route che non sono API - serve sempre home.html
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(__dirname, 'frontend', 'home.html'));
-  }
+// Delete ombrelloneVenduto by contract
+app.delete('/api/ombrelloneVenduto', async (req, res) => {
+    try {
+        const { contratto } = req.query;
+        console.log('Ricevuta richiesta eliminazione ombrelloni per contratto:', contratto);
+        
+        if (!contratto) {
+            return res.status(400).json({ error: 'Contract number is required' });
+        }
+
+        // Converti il contratto in numero per essere sicuri
+        const contractNumber = parseInt(contratto);
+        if (isNaN(contractNumber)) {
+            return res.status(400).json({ error: 'Contract number must be a valid number' });
+        }
+
+        console.log('Eliminando ombrelloni venduti per contratto numero:', contractNumber);
+        
+        // Prima verifica quanti record ci sono
+        const count = await db.collection('ombrelloneVenduto').countDocuments({ contratto: contractNumber });
+        console.log('Trovati', count, 'ombrelloni venduti da eliminare');
+        
+        // Elimina tutti i record con questo numero di contratto
+        const result = await db.collection('ombrelloneVenduto').deleteMany({ contratto: contractNumber });
+        
+        console.log('Risultato eliminazione:', result);
+        
+        res.json({ 
+            deletedCount: result.deletedCount, 
+            message: `Deleted ${result.deletedCount} records for contract ${contractNumber}` 
+        });
+    } catch (error) {
+        console.error('Errore eliminazione ombrelloneVenduto:', error);
+        handleError(res, error, 'Failed to delete ombrelloneVenduto');
+    }
 });
 
-// Start the server after connecting to MongoDB
+// Fallback route
+app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+        res.sendFile(path.join(__dirname, 'frontend', 'home.html'));
+    }
+});
+
+// Server startup and graceful shutdown
 connectToMongoDB().then(() => {
     app.listen(port, () => {
-        console.log(`Backend server running at http://localhost:${port}`);
-        console.log(`Website: http://localhost:${port}`);
-        console.log(`API base URL: http://localhost:${port}/api`);
-        console.log(`Database: MongoDB Atlas`);
+        console.log(`Server running at http://localhost:${port}`);
+        console.log(`API: http://localhost:${port}/api | Database: MongoDB Atlas`);
     });
 });
 
-// Graceful shutdown
 process.on('SIGINT', async () => {
-    console.log('Shutting down server...');
-    if (client) {
-        await client.close();
-        console.log('MongoDB connection closed');
-    }
+    console.log('Shutting down...');
+    if (client) await client.close();
     process.exit(0);
 });

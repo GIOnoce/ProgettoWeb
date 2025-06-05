@@ -1,4 +1,4 @@
-// Sistema Gestione Ombrelloni - Ultra Ottimizzato 
+// Sistema Gestione Ombrelloni 
 class OmbrelloniManager {
   constructor() {
     this.data = { ombrelloni: [], tipologie: [], tariffe: [], contratti: [], clienti: [], venduti: [], disponibilita: [] };
@@ -31,51 +31,97 @@ class OmbrelloniManager {
     setTimeout(() => notification.remove(), 5000);
   }
 
-// 1. MODIFICA NELLA FUNZIONE loadData() - Aggiungi il caricamento delle tariffe
 async loadData() {
-    try {
-        // Carica tutti i dati necessari in parallelo
-        const [dataResponse, tariffeResponse] = await Promise.all([
-            fetch(`${this.config.apiUrl}/data`),
-            fetch(`${this.config.apiUrl}/Tariffe`)
-        ]);
-        
-        if (!dataResponse.ok) throw new Error(`HTTP ${dataResponse.status} - Data`);
-        if (!tariffeResponse.ok) throw new Error(`HTTP ${tariffeResponse.status} - Tariffe`);
-        
-        const data = await dataResponse.json();
-        const tariffe = await tariffeResponse.json();
-        
-        Object.assign(this.data, {
-            ombrelloni: data.ombrelloni || [],
-            tipologie: data.tipologie || [],
-            tariffe: tariffe || [], // QUESTA È LA RIGA FONDAMENTALE CHE MANCAVA
-            clienti: data.clienti || [],
-            contratti: (data.contratti || []).map(c => ({ ...c, stipulatoDa: this.arr(c.stipulatoDa), importo: +c.importo || 0 })),
-            venduti: (data.ombrelloneVenduto || []).map(v => ({ 
-                idOmbrellone: v.idOmbrellone, 
-                data: v.data ? new Date(v.data) : null,
-                dataInizio: v.dataInizio ? new Date(v.dataInizio) : null,
-                dataFine: v.dataFine ? new Date(v.dataFine) : null,
-                contratto: v.contratto 
-            })),
-            disponibilita: (data.giornoDisponibilita || []).map(d => ({ idOmbrellone: d.idOmbrellone, data: new Date(d.data) }))
-        });
-        
-        this.notify(`Dati caricati - ${this.data.tariffe.length} tariffe trovate`, 'success');
-        console.log('Tariffe caricate:', this.data.tariffe); // Debug
-    } catch(e) {
-        this.notify('Errore caricamento: ' + e.message, 'error');
-        throw e;
+  try {
+    // Carica tutti i dati necessari in parallelo
+    const [dataResponse, tariffeResponse] = await Promise.all([
+      fetch(`${this.config.apiUrl}/data`),
+      fetch(`${this.config.apiUrl}/Tariffe`)
+    ]);
+    
+    if (!dataResponse.ok) throw new Error(`HTTP ${dataResponse.status} - Data`);
+    if (!tariffeResponse.ok) throw new Error(`HTTP ${tariffeResponse.status} - Tariffe`);
+    
+    const data = await dataResponse.json();
+    const tariffe = await tariffeResponse.json();
+    
+    Object.assign(this.data, {
+      ombrelloni: data.ombrelloni || [],
+      tipologie: data.tipologie || [],
+      tariffe: tariffe || [],
+      clienti: data.clienti || [],
+      contratti: (data.contratti || []).map(c => ({ ...c, stipulatoDa: this.arr(c.stipulatoDa), importo: +c.importo || 0 })),
+      venduti: (data.ombrelloneVenduto || []).map(v => ({ 
+        idOmbrellone: v.idOmbrellone, 
+        data: v.data ? new Date(v.data) : null,
+        dataInizio: v.dataInizio ? new Date(v.dataInizio) : null,
+        dataFine: v.dataFine ? new Date(v.dataFine) : null,
+        contratto: v.contratto 
+      })),
+      disponibilita: (data.giornoDisponibilita || []).map(d => ({ idOmbrellone: d.idOmbrellone, data: new Date(d.data) }))
+    });
+    
+    //Popola la select dei clienti dopo aver caricato i dati
+    const clienteSelect = document.getElementById('cliente');
+    if (clienteSelect && clienteSelect.tagName.toLowerCase() === 'select') {
+      this.setupClienteSelect(clienteSelect);
     }
+    
+  } catch(e) {
+    this.notify('Errore caricamento: ' + e.message, 'error');
+    throw e;
+  }
 }
 
-  setupEvents() {
-    const els = ['filtroForm', 'tipoTariffa', 'cliente'].map(id => document.getElementById(id));
-    if (els[0]) els[0].addEventListener("submit", e => this.handleFilter(e));
-    if (els[1]) els[1].addEventListener("change", () => this.toggleMinDays());
-    if (els[2]) this.setupClienteAutocomplete(els[2]);
+
+setupEvents() {
+  const els = ['filtroForm', 'tipoTariffa', 'cliente'].map(id => document.getElementById(id));
+  if (els[0]) els[0].addEventListener("submit", e => this.handleFilter(e));
+  if (els[1]) els[1].addEventListener("change", () => this.toggleMinDays());
+  if (els[2]) {
+    // Controlla se è una select o un input
+    if (els[2].tagName.toLowerCase() === 'select') {
+      this.setupClienteSelect(els[2]);
+    } else {
+      this.setupClienteAutocomplete(els[2]);
+    }
   }
+}
+
+//Nuova funzione per popolare la select dei clienti
+setupClienteSelect(select) {
+  const allOption = select.querySelector('option[value=""]');
+  select.innerHTML = '';
+  
+  if (allOption) {
+    select.appendChild(allOption);
+  } else {
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Tutti';
+    select.appendChild(defaultOption);
+  }
+  
+  // Ordina i clienti alfabeticamente per nome e cognome
+  const clientiOrdinati = [...this.data.clienti].sort((a, b) => {
+    const nomeA = `${a.nome} ${a.cognome}`.toLowerCase();
+    const nomeB = `${b.nome} ${b.cognome}`.toLowerCase();
+    return nomeA.localeCompare(nomeB);
+  });
+  
+  // Aggiunge un'opzione per ogni cliente
+  clientiOrdinati.forEach(cliente => {
+    const option = document.createElement('option');
+    option.value = cliente.codice; // Usa il codice come valore
+    option.textContent = `${cliente.nome} ${cliente.cognome}`;
+    option.setAttribute('data-codice', cliente.codice);
+    option.setAttribute('data-email', cliente.email || '');
+    select.appendChild(option);
+  });
+  
+  console.log(`Popolata select clienti con ${clientiOrdinati.length} clienti`);
+}
+
 
   setupClienteAutocomplete(input) {
     const datalist = Object.assign(document.createElement('datalist'), { id: 'clientiList' });
@@ -99,7 +145,7 @@ async loadData() {
       tipologie: () => container.innerHTML = `<div class="tipologie-container">${['standard.jpg', 'family.jpg', 'luxury.jpg'].map((img, i) => 
         `<div class="tipologia-card"><img src="${img}" class="tipologia-image"><div class="tipologia-content">
         <h3 class="tipologia-title"><i class="fas fa-${['umbrella-beach', 'crown', 'gem'][i]}"></i>${['Standard<br>(T1)', 'Family<br>(T2)', 'Luxury<br>(T3)'][i]}</h3>
-        <div class="tipologia-price">+€${[0, 5, 10][i]},00/giorno</div>
+        <div class="tipologia-price">+€${[0, 5, 10][i]},00/giorno</div><br>
         <div class="tipologia-features">${[['2 Lettini', 'Servizi Base', 'Pulizia'], ['2 Lettini Premium', 'Ombrellone', 'Tavolino', 'Servizi aggiuntivi'], ['Ombrellone doppio', 'Lettini', 'Tavolino', 'Cassetta sicurezza', 'Servizi aggiuntivi']][i].map(f => `<span class="feature-tag">${f}</span>`).join('')}
         </div></div></div>`).join('')}</div>`,
       tipologiatariffa: () => this.data.tariffe.forEach(t => container.innerHTML += `<strong>Codice: ${t.codice}</strong><br>Tariffa: ${t.codTariffa || 'N/A'}<br>Prezzo: €${(+t.prezzo || 0).toFixed(2)}<br>Tipo: ${t.tipo || 'N/A'}<br><hr>`),
@@ -110,37 +156,80 @@ async loadData() {
     (displays[type] || (() => container.innerHTML = "<p>Tipo non riconosciuto</p>"))();
   }
 
-  displayOmbrelloni(container) {
-    if (!this.data.ombrelloni.length) return container.innerHTML = "<p>Nessun ombrellone disponibile.</p>";
-    this.data.ombrelloni.forEach(o => {
-      const id = o.id || o._id;
-      container.appendChild(Object.assign(document.createElement("div"), {
-        className: "ombrellone-box",
-        innerHTML: `<div class="info-ombrellone"><strong>Ombrellone #${id}</strong><br>Settore: ${o.settore || 'N/A'}<br>Fila: ${o.fila || 'N/A'}, Posto: ${o.postoFila || o.numFila || o.ordine || 'N/A'}<br>Tipologia: ${o.tipologia || 'N/A'}</div><div class="stato-ombrellone">${this.getStatus(id)}</div>`
-      }));
-    });
-  }
-
-  getStatus(id) {
-    const available = this.data.disponibilita.filter(d => d.idOmbrellone === id);
+displayOmbrelloni(container) {
+  if (!this.data.ombrelloni.length) return container.innerHTML = "<p>Nessun ombrellone disponibile.</p>";
+  
+  // Filtra solo gli ombrelloni occupati
+  const ombrelloniOccupati = this.data.ombrelloni.filter(o => {
+    const id = o.id || o._id;
     const sold = this.data.venduti.find(v => v.idOmbrellone === id);
-    let status = "";
-    
-    if (available.length) status += `<div class="libero"><strong>Libero</strong><br>${available.map(a => a.data.toLocaleDateString(this.config.dateFormat)).join('<br>')}</div>`;
-    
-    if (sold) {
-      const contract = this.data.contratti.find(c => c.numProgr == sold.contratto);
-      if (sold.dataInizio && sold.dataFine) {
-        const [start, end] = [new Date(sold.dataInizio).toLocaleDateString(this.config.dateFormat), new Date(sold.dataFine).toLocaleDateString(this.config.dateFormat)];
-        const period = sold.dataInizio === sold.dataFine ? start : `dal ${start} al ${end}`;
-        status += `<div class="occupato"><strong>Occupato</strong><br>${period}<br></div>`;
-      } else {
-        status += `<div class="occupato"><strong>Occupato</strong><br>${sold.data.toLocaleDateString(this.config.dateFormat)}<br>Cliente: ${this.getClientNames(contract?.stipulatoDa || [])}</div>`;
-      }
-    }
-    
-    return status || `<div class="nessuno"><em>Disponibile in ogni data</em></div>`;
+    return sold; // Restituisce true solo se l'ombrellone è venduto/occupato
+  });
+  
+  if (!ombrelloniOccupati.length) {
+    return container.innerHTML = "<p>🎉 Nessun ombrellone occupato al momento!</p>";
   }
+  
+  ombrelloniOccupati.forEach(o => {
+    const id = o.id || o._id;
+    container.appendChild(Object.assign(document.createElement("div"), {
+      className: "ombrellone-box",
+      innerHTML: `<div class="info-ombrellone"><strong>Ombrellone #${id}</strong><br>Settore: ${o.settore || 'N/A'}<br>Fila: ${o.fila || 'N/A'}, Posto: ${o.postoFila || o.numFila || o.ordine || 'N/A'}<br>Tipologia: ${o.tipologia || 'N/A'}</div><div class="stato-ombrellone">${this.getStatus(id)}</div>`
+    }));
+  });
+}
+
+getStatus(id) {
+  const available = this.data.disponibilita.filter(d => d.idOmbrellone === id);
+  const sold = this.data.venduti.filter(v => v.idOmbrellone === id); // Cambiato da find a filter per prendere tutti
+  let status = "";
+  
+  // Mostra date libere
+  if (available.length) {
+    status += `<div class="libero"><strong>Libero</strong><br>${available.map(a => a.data.toLocaleDateString(this.config.dateFormat)).join('<br>')}</div>`;
+  }
+  
+  // Mostra TUTTE le date occupate
+  if (sold.length) {
+    status += `<div class="occupato"><strong>Occupato</strong><br>`;
+    
+    // Raggruppa le vendite per contratto per una visualizzazione più ordinata
+    const venditePeriodi = [];
+    
+    sold.forEach(vendita => {
+      const contract = this.data.contratti.find(c => c.numProgr == vendita.contratto);
+      const clienteNome = this.getClientNames(contract?.stipulatoDa || []);
+      
+      if (vendita.dataInizio && vendita.dataFine) {
+        // Periodo con data inizio e fine
+        const start = new Date(vendita.dataInizio).toLocaleDateString(this.config.dateFormat);
+        const end = new Date(vendita.dataFine).toLocaleDateString(this.config.dateFormat);
+        
+        if (vendita.dataInizio === vendita.dataFine) {
+          venditePeriodi.push(`${start} - ${clienteNome}`);
+        } else {
+          venditePeriodi.push(`dal ${start} al ${end} - ${clienteNome}`);
+        }
+      } else if (vendita.data) {
+        // Singola data
+        const dataVendita = new Date(vendita.data).toLocaleDateString(this.config.dateFormat);
+        venditePeriodi.push(`${dataVendita} - ${clienteNome}`);
+      }
+    });
+    
+    // Ordina i periodi per data
+    venditePeriodi.sort((a, b) => {
+      const dateA = new Date(a.split(' - ')[0].replace('dal ', ''));
+      const dateB = new Date(b.split(' - ')[0].replace('dal ', ''));
+      return dateA - dateB;
+    });
+    
+    status += venditePeriodi.join('<br>');
+    status += `</div>`;
+  }
+  
+  return status || `<div class="nessuno"><em>Disponibile in ogni data</em></div>`;
+}
 
   getClientNames = codes => this.arr(codes).map(code => {
     const client = this.data.clienti.find(c => c.codice === code);
@@ -278,38 +367,89 @@ async loadData() {
     confirmDiv.style.display = 'block';
   }
 
-  async confirmDeleteContract(id) {
+async confirmDeleteContract(id) {
+  try {
+    // Trova il contratto da eliminare per ottenere il numProgr
+    const contractToDelete = this.data.contratti.find(c => this.extractId(c._id) === id);
+    if (!contractToDelete) {
+      throw new Error('Contratto non trovato');
+    }
+
+    console.log('Eliminando contratto:', contractToDelete.numProgr);
+
+    // PRIMO: Elimina gli ombrelloni venduti associati PRIMA di eliminare il contratto
     try {
-      const response = await fetch(`${this.config.apiUrl}/Contratti/${id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const ombrelloniResponse = await fetch(
+        `${this.config.apiUrl}/ombrelloneVenduto?contratto=${contractToDelete.numProgr}`, 
+        { method: 'DELETE' }
+      );
       
-      this.data.contratti = this.data.contratti.filter(c => this.extractId(c._id) !== id);
-      const contractItem = document.getElementById(`display-${id}`).closest('.contratto-item');
-      if (contractItem) {
-        Object.assign(contractItem.style, { 
-          transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
-          opacity: '0',
-          transform: 'translateX(-20px)'
-        });
-        
-        setTimeout(() => {
-          contractItem.remove();
-          this.notify("Contratto eliminato", 'success');
-          this.updateStats();
-          
-          if (this.data.contratti.length === 0) {
-            const container = document.getElementById("risultati");
-            if (container && container.children.length === 0) {
-              container.innerHTML = `<div class="no-contracts"><h3>📋 Contratti</h3><p><strong>Non disponibili</strong></p><p>Nessun contratto presente nel sistema.</p></div>`;
-            }
-          }
-        }, 300);
+      if (ombrelloniResponse.ok) {
+        const result = await ombrelloniResponse.json();
+        console.log('Ombrelloni venduti eliminati:', result.deletedCount);
+      } else {
+        console.warn(`Avviso: impossibile eliminare ombrelloni venduti per contratto ${contractToDelete.numProgr}`);
       }
     } catch (error) {
-      this.notify('Errore eliminazione: ' + error.message, 'error');
-      this.cancelDeleteContract(id);
+      console.warn(`Errore eliminazione ombrelloni venduti:`, error);
     }
+
+    // SECONDO: Elimina il contratto
+    const contractResponse = await fetch(`${this.config.apiUrl}/Contratti/${id}`, { 
+      method: 'DELETE' 
+    });
+    
+    if (!contractResponse.ok) {
+      throw new Error(`Errore eliminazione contratto: HTTP ${contractResponse.status}`);
+    }
+
+    console.log('Contratto eliminato:', id);
+
+    // Aggiorna i dati locali
+    this.data.contratti = this.data.contratti.filter(c => this.extractId(c._id) !== id);
+    
+    // Filtra gli ombrelloni venduti anche localmente
+    const ombrelloniVendutiAssociati = this.data.venduti.filter(v => 
+      v.contratto === contractToDelete.numProgr
+    );
+    this.data.venduti = this.data.venduti.filter(v => v.contratto !== contractToDelete.numProgr);
+    
+    // Rimuovi l'elemento dal DOM con animazione
+    const contractItem = document.getElementById(`display-${id}`).closest('.contratto-item');
+    if (contractItem) {
+      Object.assign(contractItem.style, { 
+        transition: 'opacity 0.3s ease-out, transform 0.3s ease-out',
+        opacity: '0',
+        transform: 'translateX(-20px)'
+      });
+      
+      setTimeout(() => {
+        contractItem.remove();
+      
+        let successMessage = "Contratto eliminato";
+        if (ombrelloniVendutiAssociati.length > 0) {
+          successMessage += ` e liberati ${ombrelloniVendutiAssociati.length} ombrellone/i`;
+        }
+        this.notify(successMessage, 'success');
+        
+        this.updateStats();
+        
+        // Se non ci sono più contratti, mostra il messaggio di "nessun contratto"
+        if (this.data.contratti.length === 0) {
+          const container = document.getElementById("risultati");
+          if (container && container.children.length === 0) {
+            container.innerHTML = `<div class="no-contracts"><h3>📋 Contratti</h3><p><strong>Non disponibili</strong></p><p>Nessun contratto presente nel sistema.</p></div>`;
+          }
+        }
+      }, 300);
+    }
+
+  } catch (error) {
+    console.error('Errore completo eliminazione:', error);
+    this.notify('Errore eliminazione: ' + error.message, 'error');
+    this.cancelDeleteContract(id);
   }
+}
 
   cancelDeleteContract(id) {
     const [displayDiv, confirmDiv] = [`display-${id}`, `confirm-delete-${id}`].map(id => document.getElementById(id));
@@ -317,325 +457,288 @@ async loadData() {
     if (confirmDiv) confirmDiv.remove();
   }
 
-  async processClients(inputs) {
-    const codes = [];
-    for (const input of inputs) {
-      const existing = this.data.clienti.find(c => c.codice === input);
-      if (existing) { codes.push(input); continue; }
 
-      const parts = input.split(' ');
-      if (parts.length >= 2) {
-        const [nome, ...cognomeParts] = parts;
-        const cognome = cognomeParts.join(' ');
-        const byName = this.data.clienti.find(c => c.nome?.toLowerCase() === nome.toLowerCase() && c.cognome?.toLowerCase() === cognome.toLowerCase());
-        codes.push(byName ? byName.codice : await this.createClient(nome, cognome));
-      } else {
-        codes.push(input);
-      }
-    }
-    return codes;
+
+
+
+  // Gestione filtri unificata
+handleFilter(e) {
+  e.preventDefault();
+  const form = new FormData(e.target);
+  const isContratti = window.location.pathname.includes('contratti.html') || 
+                     new URLSearchParams(window.location.search).get('view') === 'contratti';
+  
+  if (!isContratti) {
+    const required = ['dataInizio', 'dataFine', 'tipoTariffa'].map(k => form.get(k));
+    if (required.some(v => !v)) return this.notify('Inserire: Data Inizio, Data Fine e Tipo Tariffa', 'error');
+    if (!["Giornaliera", "Abbonamento"].includes(required[2])) 
+      return this.notify('Tipo Tariffa deve essere "Giornaliera" o "Abbonamento"', 'error');
   }
-
-  async createClient(nome, cognome) {
-    const code = `CLI${this.id()}`;
-    const client = { codice: code, nome, cognome, email: '', dataNascita: null, indirizzo: '' };
+  
+  const filters = Object.fromEntries(['dataInizio', 'dataFine', 'settore', 'fila', 'tipologia', 'tipoTariffa', 'cliente']
+    .map(k => [k, form.get(k)]).concat([
+      ['numMinGiorni', +form.get('numMinGiorni') || 0],
+      ['prezzoMin', +form.get('prezzoMin') || 0], 
+      ['prezzoMax', +form.get('prezzoMax') || Infinity]
+    ]));
     
-    try {
-      const response = await fetch(`${this.config.apiUrl}/Clienti`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(client)
-      });
-      if (response.ok) this.data.clienti.push(await response.json());
-    } catch (error) {
-      console.error('Errore creazione cliente:', error);
-    }
-    return code;
-  }
+  isContratti ? this.applyContractFilters(filters) : this.applyFilters(filters);
+}
 
-  handleFilter(e) {
-    e.preventDefault();
-    const form = new FormData(e.target);
-    const isContrattiPage = window.location.pathname.includes('contratti.html') || new URLSearchParams(window.location.search).get('view') === 'contratti';
-    
-    if (!isContrattiPage) {
-      const [dataInizio, dataFine, tipoTariffa] = ['dataInizio', 'dataFine', 'tipoTariffa'].map(k => form.get(k));
+applyContractFilters(filters) {
+  const container = document.getElementById("risultati");
+  if (!container) return;
+  
+  container.innerHTML = "<h3>🔍 Contratti Filtrati</h3>";
+  let filtered = this.data.contratti
+    .filter(c => !filters.dataInizio || c.data.split('T')[0] === filters.dataInizio)
+    .filter(c => {
+      if (!filters.cliente?.trim()) return true;
       
-      if (!dataInizio || !dataFine || !tipoTariffa) {
-        return this.notify('Per cercare è obbligatorio inserire: Data Inizio, Data Fine e Tipo Tariffa (Giornaliera o Abbonamento)', 'error');
+      // Se il filtro cliente è un codice (dalla select)
+      if (this.arr(c.stipulatoDa).includes(filters.cliente)) {
+        return true;
       }
       
-      if (!["Giornaliera", "Abbonamento"].includes(tipoTariffa)) {
-        return this.notify('Il Tipo Tariffa deve essere "Giornaliera" o "Abbonamento"', 'error');
-      }
-    }
-    
-    if (isContrattiPage) {
-      this.applyContractFilters({ dataInizio: form.get("dataInizio"), cliente: form.get("cliente") });
-    } else {
-      this.applyFilters({
-        dataInizio: form.get("dataInizio"), dataFine: form.get("dataFine"), settore: form.get("settore"),
-        fila: form.get("fila"), tipologia: form.get("tipologia"), tipoTariffa: form.get("tipoTariffa"),
-        numMinGiorni: +form.get("numMinGiorni") || 0, prezzoMin: +form.get("prezzoMin") || 0,
-        prezzoMax: +form.get("prezzoMax") || Infinity
-      });
-    }
-  }
-
-  applyContractFilters(filters) {
-    const container = document.getElementById("risultati");
-    if (!container) return;
-    
-    container.innerHTML = "<h3>🔍 Contratti Filtrati</h3>";
-    let filteredContratti = this.data.contratti;
-    
-    if (filters.dataInizio) filteredContratti = filteredContratti.filter(c => c.data.split('T')[0] === filters.dataInizio);
-    if (filters.cliente?.trim()) {
-      const searchTerm = filters.cliente.trim().toLowerCase();
-      filteredContratti = filteredContratti.filter(c => this.getClientNames(c.stipulatoDa).toLowerCase().includes(searchTerm));
-    }
-    
-    if (!filteredContratti.length) return container.innerHTML += `<div class="no-results">🚫 Nessun contratto trovato per i criteri selezionati</div>`;
-    
-    const contrattiOrdinati = [...filteredContratti].sort((a, b) => new Date(a.data) - new Date(b.data));
-    contrattiOrdinati.forEach((c, index) => {
-      const [date, id, numeroSequenziale] = [new Date(c.data).toLocaleDateString(this.config.dateFormat), this.extractId(c._id), index + 1];
-      const availableClients = this.getAvailableClients(id);
-      const currentClient = this.data.clienti.find(client => this.arr(c.stipulatoDa).includes(client.codice));
-      const allAvailableOptions = [...availableClients];
-      if (currentClient && !availableClients.some(ac => ac.codice === currentClient.codice)) {
-        allAvailableOptions.unshift(currentClient);
-      }
-      
-      const contractDiv = Object.assign(document.createElement('div'), { className: 'contratto-item' });
-      contractDiv.innerHTML = this.generateContractHTML(c, id, date, numeroSequenziale, allAvailableOptions);
-      container.appendChild(contractDiv);
+      // Se il filtro cliente è un nome (backward compatibility con input)
+      return this.getClientNames(c.stipulatoDa).toLowerCase().includes(filters.cliente.trim().toLowerCase());
     });
-    
-    this.displayStats(container, filteredContratti);
+  
+  if (!filtered.length) {
+    container.innerHTML += `<div class="no-results">🚫 Nessun contratto trovato</div>`;
+    return;
   }
+  
+  this.displayContrattiList(container, filtered);
+  this.displayStats(container, filtered);
+}
 
-  displayContrattiList(container, contratti) {
-    const contrattiOrdinati = [...contratti].sort((a, b) => new Date(a.data) - new Date(b.data));
-    
-    contrattiOrdinati.forEach((c, index) => {
-      const [date, id, numeroSequenziale] = [new Date(c.data).toLocaleDateString(this.config.dateFormat), this.extractId(c._id), index + 1];
-      const availableClients = this.getAvailableClients(id);
-      const currentClient = this.data.clienti.find(client => this.arr(c.stipulatoDa).includes(client.codice));
-      const allAvailableOptions = [...availableClients];
-      if (currentClient && !availableClients.some(ac => ac.codice === currentClient.codice)) {
-        allAvailableOptions.unshift(currentClient);
-      }
+// OPZIONALE: Funzione per aggiornare la select se i clienti cambiano
+refreshClienteSelect() {
+  const clienteSelect = document.getElementById('cliente');
+  if (clienteSelect && clienteSelect.tagName.toLowerCase() === 'select') {
+    this.setupClienteSelect(clienteSelect);
+  }
+}
+
+// Display contratti unificato
+displayContrattiList(container, contratti) {
+  contratti.sort((a, b) => new Date(a.data) - new Date(b.data))
+    .forEach((c, i) => {
+      const [date, id, num] = [new Date(c.data).toLocaleDateString(this.config.dateFormat), 
+                               this.extractId(c._id), i + 1];
+      const clients = this.getAvailableClients(id);
+      const current = this.data.clienti.find(cl => this.arr(c.stipulatoDa).includes(cl.codice));
+      const allClients = current && !clients.some(ac => ac.codice === current.codice) 
+                        ? [current, ...clients] : clients;
       
-      const contractDiv = Object.assign(document.createElement('div'), { className: 'contratto-item' });
-      contractDiv.innerHTML = this.generateContractHTML(c, id, date, numeroSequenziale, allAvailableOptions);
-      container.appendChild(contractDiv);
+      container.appendChild(Object.assign(document.createElement('div'), {
+        className: 'contratto-item',
+        innerHTML: this.generateContractHTML(c, id, date, num, allClients)
+      }));
     });
-  }
+}
 
-  generateContractHTML(c, id, date, numeroSequenziale, allAvailableOptions) {
-    return `
-      <div class="contratto-display" id="display-${id}">
-        <div class="contratto-header">
-          <strong>Contratto #${numeroSequenziale}</strong>
-          <div class="contratto-actions">
-            <button class="btn-edit" onclick="ombrelloniManager.toggleEditContract('${id}')"><i class="fas fa-edit"></i> Modifica</button>
-            <button class="btn-delete" onclick="ombrelloniManager.deleteContract('${id}')"><i class="fas fa-trash"></i> Elimina</button>
-          </div>
-        </div>
-        <div class="contratto-info">
-          <span><strong>Data:</strong> ${date}</span>
-          <span><strong>Importo:</strong> €${c.importo.toFixed(2)}</span>
-          <span><strong>Cliente:</strong> ${this.getClientNames(c.stipulatoDa)}</span>
+// HTML contratto 
+generateContractHTML(c, id, date, num, clients) {
+  const clientOptions = clients.map(cl => 
+    `<option value="${cl.codice}" ${this.arr(c.stipulatoDa).includes(cl.codice) ? 'selected' : ''}>
+      ${cl.nome} ${cl.cognome}
+    </option>`).join('');
+  
+  // Calcola i limiti per le date (1 giugno - 15 settembre dell'anno corrente)
+  const currentYear = new Date().getFullYear();
+  const minDate = `${currentYear}-06-01`; // 1 giugno
+  const maxDate = `${currentYear}-09-15`; // 15 settembre
+    
+  return `
+    <div class="contratto-display" id="display-${id}">
+      <div class="contratto-header">
+        <strong>Contratto #${num}</strong>
+        <div class="contratto-actions">
+          <button class="btn-edit" onclick="ombrelloniManager.toggleEditContract('${id}')">
+            <i class="fas fa-edit"></i> Modifica</button>
+          <button class="btn-delete" onclick="ombrelloniManager.deleteContract('${id}')">
+            <i class="fas fa-trash"></i> Elimina</button>
         </div>
       </div>
-      
-      <div class="contratto-edit-form" id="edit-${id}" style="display: none;">
-        <form onsubmit="ombrelloniManager.saveContractEdit(event, '${id}')">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Data:</label>
-              <input type="date" name="data" value="${c.data.split('T')[0]}" required>
-            </div>
-            <div class="form-group">
-              <label>Importo (€):</label>
-              <input type="number" step="0.01" name="importo" value="${c.importo}" required min="0">
-            </div>
-            <div class="form-group">
-              <label>Cliente:</label>
-              <select name="cliente" required>
-                ${allAvailableOptions.map(client => 
-                  `<option value="${client.codice}" ${this.arr(c.stipulatoDa).includes(client.codice) ? 'selected' : ''}>
-                    ${client.nome} ${client.cognome}
-                  </option>`
-                ).join('')}
-              </select>
-            </div>
+      <div class="contratto-info">
+        <span><strong>Data:</strong> ${date}</span>
+        <span><strong>Importo:</strong> €${c.importo.toFixed(2)}</span>
+        <span><strong>Cliente:</strong> ${this.getClientNames(c.stipulatoDa)}</span>
+      </div>
+    </div>
+    <div class="contratto-edit-form" id="edit-${id}" style="display: none;">
+      <form onsubmit="ombrelloniManager.saveContractEdit(event, '${id}')">
+        <div class="form-row">
+          <div class="form-group">
+            <label>Data: 
+              <input type="date" 
+                     name="data" 
+                     value="${c.data.split('T')[0]}" 
+                     min="${minDate}" 
+                     max="${maxDate}"
+                     required>
+            </label>
           </div>
-          <div class="form-actions">
-            <button type="submit" class="btn-save"><i class="fas fa-save"></i> Salva</button>
-            <button type="button" class="btn-cancel" onclick="ombrelloniManager.toggleEditContract('${id}')"><i class="fas fa-times"></i> Annulla</button>
+          <div class="form-group">
+            <label>Importo (€): <input type="number" step="0.01" name="importo" value="${c.importo}" required min="0"></label>
           </div>
-        </form>
-      </div>`;
-  }
+          <div class="form-group">
+            <label>Cliente: <select name="cliente" required>${clientOptions}</select></label>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-save"><i class="fas fa-save"></i> Salva</button>
+          <button type="button" class="btn-cancel" onclick="ombrelloniManager.toggleEditContract('${id}')">
+            <i class="fas fa-times"></i> Annulla</button>
+        </div>
+      </form>
+    </div>`;
+}
 
-  applyFilters(filters) {
-    this.lastFilterApplied = filters;
-    const container = document.getElementById("risultati");
-    const isOmbrelloni = new URLSearchParams(window.location.search).get('view') === 'ombrelloni';
-    
-    if (isOmbrelloni) {
-      container.innerHTML = `<h3>🏖️ Ombrelloni ${filters.dataInizio ? `per ${new Date(filters.dataInizio).toLocaleDateString(this.config.dateFormat)}` : 'Disponibili'}</h3>`;
-      this.displayFilteredOmbrelloni(container, this.filterOmbrelloni(filters), filters);
-    } else {
-      container.innerHTML = "<h3>Contratti Filtrati</h3>";
-      this.displayFilteredContratti(container, this.filterContratti(filters));
+// Applicazione filtri generali
+applyFilters(filters) {
+  this.lastFilterApplied = filters;
+  const container = document.getElementById("risultati");
+  const isOmbrelloni = new URLSearchParams(window.location.search).get('view') === 'ombrelloni';
+  
+  if (isOmbrelloni) {
+    // MODIFICA: Costruisci il titolo con il periodo completo
+    let dateText = 'Disponibili';
+    if (filters.dataInizio) {
+      if (filters.dataFine && filters.dataFine !== filters.dataInizio) {
+        // Periodo da... a...
+        dateText = `dal ${new Date(filters.dataInizio).toLocaleDateString(this.config.dateFormat)} al ${new Date(filters.dataFine).toLocaleDateString(this.config.dateFormat)}`;
+      } else {
+        // Solo una data
+        dateText = `per ${new Date(filters.dataInizio).toLocaleDateString(this.config.dateFormat)}`;
+      }
     }
+    
+    container.innerHTML = `<h3>🏖️ Ombrelloni ${dateText}</h3>`;
+    this.displayFilteredOmbrelloni(container, this.filterOmbrelloni(filters), filters);
+  } else {
+    container.innerHTML = "<h3>Contratti Filtrati</h3>";
+    this.displayFilteredContratti(container, this.filterContratti(filters));
   }
+}
 
-// Calcola prezzo totale per periodo
+
+// Calcolo prezzo 
 calculatePeriodPrice(ombrellone, dataInizio, dataFine, tipoTariffa) {
   try {
+    console.log(`Calcolando prezzo per ombrellone:`, ombrellone);
+    console.log(`Periodo: ${dataInizio} - ${dataFine}, Tipo: ${tipoTariffa}`);
+    
     const [start, end] = [new Date(dataInizio), new Date(dataFine || dataInizio)];
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return 0;
-    if (end < start) [start, end] = [end, start];
-    
-    let prezzoTotale = 0;
-    for (let date = new Date(start); date <= end; date.setDate(date.getDate() + 1)) {
-      prezzoTotale += this.getPriceForDate(ombrellone.tipologia, date, tipoTariffa);
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      console.error('Date non valide');
+      return 0;
     }
     
-    return tipoTariffa === 'Abbonamento' ? 
-      this.applyAbbonamentoDiscount(prezzoTotale, this.calculateDays(start, end)) : prezzoTotale;
-  } catch { return 0; }
+    if (end < start) {
+      console.log('Invertendo date...');
+      [start, end] = [end, start];
+    }
+    
+    const giorni = this.calculateDays(start, end);
+    console.log(`Giorni calcolati: ${giorni}`);
+    
+    // Ottieni il prezzo per il primo giorno (assumendo tariffa uniforme nel periodo)
+    const prezzoGiornaliero = this.getPriceForDate(ombrellone.tipologia, start, tipoTariffa);
+    console.log(`Prezzo giornaliero: €${prezzoGiornaliero}`);
+    
+    if (prezzoGiornaliero === 0) {
+      console.warn('Prezzo giornaliero è 0');
+      return 0;
+    }
+    
+    // Calcola prezzo totale
+    const prezzoTotale = prezzoGiornaliero * giorni;
+    console.log(`Prezzo base: €${prezzoTotale} (${prezzoGiornaliero} x ${giorni})`);
+    
+    // Applica sconto se abbonamento
+    const prezzoFinale = tipoTariffa === 'Abbonamento' ? 
+                        this.applyAbbonamentoDiscount(prezzoTotale, giorni) : 
+                        prezzoTotale;
+    
+    console.log(`Prezzo finale: €${prezzoFinale}`);
+    return prezzoFinale;
+    
+  } catch (error) {
+    console.error('Errore nel calcolo prezzo:', error);
+    return 0;
+  }
 }
 
-// Ottieni prezzo per data specifica
+
+
 getPriceForDate(tipologia, data, tipoTariffa) {
+  console.log(`Cercando prezzo per: tipologia=${tipologia}, data=${data.toISOString().split('T')[0]}, tipo=${tipoTariffa}`);
+  
   const tariffe = this.data.tariffe.filter(t => {
-    const tipMatch = t.codTipologia === tipologia || t.codice === tipologia;
+    // Match per tipo tariffa (Giornaliera/Abbonamento)
     const tipoMatch = t.tipo === tipoTariffa;
-    const startDate = t.dataInizio ? new Date(t.dataInizio) : null;
-    const endDate = t.dataFine ? new Date(t.dataFine) : null;
     
-    let inRange = true;
-    if (startDate && endDate) inRange = data >= startDate && data <= endDate;
-    else if (startDate) inRange = data >= startDate;
-    else if (endDate) inRange = data <= endDate;
+    // Verifica range date della tariffa
+    const dataTarget = new Date(data);
+    const dataInizioTariffa = t.dataInizio ? new Date(t.dataInizio) : null;
+    const dataFineTariffa = t.dataFine ? new Date(t.dataFine) : null;
     
-    return tipMatch && tipoMatch && inRange;
+    const inRange = (!dataInizioTariffa || dataTarget >= dataInizioTariffa) && 
+                    (!dataFineTariffa || dataTarget <= dataFineTariffa);
+    
+    console.log(`Tariffa ${t.codice}: tipo=${tipoMatch}, range=${inRange}, prezzo=${t.prezzo}`);
+    
+    return tipoMatch && inRange;
   });
   
-  if (!tariffe.length) return 0;
+  console.log(`Tariffe trovate: ${tariffe.length}`);
   
-  // Seleziona tariffa più specifica (range minore)
-  const tariffa = tariffe.reduce((best, curr) => {
-    const getRange = t => {
-      const start = t.dataInizio ? new Date(t.dataInizio) : new Date('1900-01-01');
-      const end = t.dataFine ? new Date(t.dataFine) : new Date('2100-12-31');
-      return end - start;
-    };
-    return getRange(curr) < getRange(best) ? curr : best;
-  });
-    const prezzo = parseFloat(tariffa.prezzo) || 0;
-    console.log('Prezzo selezionato:', prezzo, 'da tariffa:', tariffa);
-    return prezzo;
+  if (!tariffe.length) {
+    console.warn(`Nessuna tariffa trovata per tipologia ${tipologia} e tipo ${tipoTariffa}`);
+    return 0;
+  }
+  
+  const tariffa = tariffe[0];
+  let prezzoBase = parseFloat(tariffa.prezzo) || 0;
+  
+  // AGGIUNGI SOVRAPPREZZO IN BASE ALLA TIPOLOGIA
+  const sovrapprezzi = {
+    'T1': 0,    // Standard - nessun sovrapprezzo
+    'T2': 5,    // Family - +€5/giorno
+    'T3': 10    // Luxury - +€10/giorno
+  };
+  
+  const sovrapprezzo = sovrapprezzi[tipologia] || 0;
+  const prezzoFinale = prezzoBase + sovrapprezzo;
+  
+  console.log(`Prezzo base: €${prezzoBase}, Sovrapprezzo ${tipologia}: €${sovrapprezzo}, Prezzo finale: €${prezzoFinale}`);
+  
+  return prezzoFinale;
 }
 
-// 3. AGGIUNTA FUNZIONE PER APPLICARE SCONTO ABBONAMENTO
-applyAbbonamentoDiscount(prezzoTotale, numGiorni) {
-    // Applica sconti per abbonamenti in base alla durata
-    if (numGiorni >= 30) {
-        return prezzoTotale * 0.7; // 30% sconto per 30+ giorni
-    } else if (numGiorni >= 14) {
-        return prezzoTotale * 0.8; // 20% sconto per 14+ giorni
-    } else if (numGiorni >= 7) {
-        return prezzoTotale * 0.9; // 10% sconto per 7+ giorni
-    }
-    return prezzoTotale; // Nessuno sconto
-}
+// Sconto abbonamento
+applyAbbonamentoDiscount = (prezzo, giorni) => 
+  prezzo * (giorni >= 30 ? 0.7 : giorni >= 14 ? 0.8 : giorni >= 7 ? 0.9 : 1);
 
-// 4. AGGIUNTA FUNZIONE DEBUG PER VERIFICARE CALCOLI
-debugPriceCalculation(ombrellone, dataInizio, dataFine, tipoTariffa) {
-    console.log('=== DEBUG CALCOLO PREZZO ===');
-    console.log('Ombrellone:', ombrellone);
-    console.log('Periodo:', dataInizio, 'to', dataFine);
-    console.log('Tipo tariffa:', tipoTariffa);
-    console.log('Tariffe disponibili:', this.data.tariffe.length);
-    
-    const prezzo = this.calculatePeriodPrice(ombrellone, dataInizio, dataFine, tipoTariffa);
-    console.log('Prezzo calcolato:', prezzo);
-    
-    return prezzo;
-}
-
-// 5. AGGIUNTA FUNZIONE PER VERIFICARE STATO TARIFFE
-checkTariffeStatus() {
-    const container = document.getElementById("risultati");
-    if (!container) return;
-    
-    container.innerHTML = `
-        <div class="tariffe-debug">
-            <h3>🔍 Stato Tariffe nel Sistema</h3>
-            <p><strong>Numero tariffe caricate:</strong> ${this.data.tariffe.length}</p>
-            
-            ${this.data.tariffe.length > 0 ? `
-                <div class="tariffe-list">
-                    <h4>Tariffe Disponibili:</h4>
-                    ${this.data.tariffe.map((t, i) => `
-                        <div class="tariffa-item" style="margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 4px;">
-                            <strong>#${i + 1}</strong><br>
-                            <strong>Codice:</strong> ${t.codice || 'N/A'}<br>
-                            <strong>Prezzo:</strong> €${(parseFloat(t.prezzo) || 0).toFixed(2)}<br>
-                            <strong>Tipo:</strong> ${t.tipo || 'N/A'}<br>
-                            <strong>Data Inizio:</strong> ${t.dataInizio ? new Date(t.dataInizio).toLocaleDateString('it-IT') : 'Non specificata'}<br>
-                            <strong>Data Fine:</strong> ${t.dataFine ? new Date(t.dataFine).toLocaleDateString('it-IT') : 'Non specificata'}
-                        </div>
-                    `).join('')}
-                </div>
-            ` : `
-                <div class="alert alert-warning">
-                    <h4>⚠️ Nessuna Tariffa Trovata</h4>
-                    <p>Il sistema non ha caricato nessuna tariffa dal database.</p>
-                    <p>Verifica che:</p>
-                    <ul>
-                        <li>La tabella 'tariffa' esista nel database</li>
-                        <li>Contenga almeno un record</li>
-                        <li>L'endpoint /api/Tariffe funzioni correttamente</li>
-                    </ul>
-                </div>
-            `}
-            
-            <button onclick="ombrelloniManager.loadData().then(() => ombrelloniManager.checkTariffeStatus())" 
-                    style="margin-top: 15px; padding: 8px 16px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                🔄 Ricarica Tariffe
-            </button>
-        </div>
-    `;
-}
-
-// Calcola giorni tra date (inclusi)
+// Utility functions 
 calculateDays = (start, end) => Math.ceil(Math.abs(end - start) / (1000 * 60 * 60 * 24)) + 1;
 
-// Filtra ombrelloni
-filterOmbrelloni(filters) {
-  return this.data.ombrelloni.filter(o => 
-    (!filters.settore || o.settore === filters.settore) &&
-    (!filters.fila || o.fila == filters.fila) &&
-    (!filters.tipologia || o.tipologia === filters.tipologia) &&
-    (!filters.dataInizio || this.isAvailableInPeriod(o.id || o._id, filters.dataInizio, filters.dataFine))
-  );
-}
+filterOmbrelloni = (filters) => this.data.ombrelloni.filter(o => 
+  (!filters.settore || o.settore === filters.settore) &&
+  (!filters.fila || o.fila == filters.fila) &&
+  (!filters.tipologia || o.tipologia === filters.tipologia) &&
+  (!filters.dataInizio || this.isAvailableInPeriod(o.id || o._id, filters.dataInizio, filters.dataFine))
+);
 
-// Verifica disponibilità singola data
-isAvailableOn(id, date) {
+isAvailableOn = (id, date) => {
   const target = new Date(date).setHours(0, 0, 0, 0);
   return !this.data.venduti.some(v => v.idOmbrellone === id && new Date(v.data).setHours(0,0,0,0) === target) &&
          this.data.disponibilita.some(d => d.idOmbrellone === id && new Date(d.data).setHours(0,0,0,0) === target);
-}
+};
 
-// Verifica disponibilità periodo
 isAvailableInPeriod(ombrelloneId, dataInizio, dataFine) {
   if (!dataInizio) return true;
   
@@ -652,15 +755,11 @@ isAvailableInPeriod(ombrelloneId, dataInizio, dataFine) {
       return !(end < vStart || start > vEnd);
     }
     
-    if (v.data) {
-      const soldDate = new Date(v.data).setHours(0, 0, 0, 0);
-      return soldDate >= start.getTime() && soldDate <= end.getTime();
-    }
-    return false;
+    return v.data && new Date(v.data).setHours(0,0,0,0) >= start.getTime() && 
+           new Date(v.data).setHours(0,0,0,0) <= end.getTime();
   });
 }
 
-// Filtra contratti
 filterContratti = (filters) => this.data.contratti.filter(c => {
   const date = new Date(c.data), amount = +c.importo || 0;
   return (!filters.dataInizio || date >= new Date(filters.dataInizio)) &&
@@ -669,21 +768,27 @@ filterContratti = (filters) => this.data.contratti.filter(c => {
           this.arr(c.stipulatoDa).length >= filters.numMinGiorni);
 });
 
-// Wrapper per prezzo periodo
-getOmbrellonePriceForPeriod = (ombrellone, dataInizio, dataFine, tipoTariffa) => 
-  this.calculatePeriodPrice(ombrellone, dataInizio, dataFine, tipoTariffa);
-
-// Mostra ombrelloni filtrati
+// Display ombrelloni 
 displayFilteredOmbrelloni(container, results, filters) {
   if (!results.length) {
-    return container.innerHTML += `<div class="no-results">🚫 Nessun ombrellone disponibile${this.getPeriodoText(filters.dataInizio, filters.dataFine)}</div>`;
+    let periodoText = '';
+    if (filters.dataInizio) {
+      if (filters.dataFine && filters.dataFine !== filters.dataInizio) {
+        periodoText = ` dal ${new Date(filters.dataInizio).toLocaleDateString(this.config.dateFormat)} al ${new Date(filters.dataFine).toLocaleDateString(this.config.dateFormat)}`;
+      } else {
+        periodoText = ` per il ${new Date(filters.dataInizio).toLocaleDateString(this.config.dateFormat)}`;
+      }
+    }
+    
+    container.innerHTML += `<div class="no-results">🚫 Nessun ombrellone disponibile${periodoText}</div>`;
+    return;
   }
   
   results.forEach(o => {
     const id = o.id || o._id;
-    const prezzo = this.getOmbrellonePriceForPeriod(o, filters.dataInizio, filters.dataFine || filters.dataInizio, filters.tipoTariffa);
-    const numGiorni = this.calculateDays(new Date(filters.dataInizio), new Date(filters.dataFine || filters.dataInizio));
-    const prezzoText = prezzo > 0 ? `€${prezzo.toFixed(2)} (${filters.tipoTariffa} - ${numGiorni} giorn${numGiorni > 1 ? 'i' : 'o'})` : 'Prezzo da definire';
+    const prezzo = this.calculatePeriodPrice(o, filters.dataInizio, filters.dataFine || filters.dataInizio, filters.tipoTariffa);
+    const giorni = this.calculateDays(new Date(filters.dataInizio), new Date(filters.dataFine || filters.dataInizio));
+    const prezzoTxt = prezzo > 0 ? `€${prezzo.toFixed(2)} (${filters.tipoTariffa} - ${giorni} giorn${giorni > 1 ? 'i' : 'o'})` : 'Prezzo da definire';
     
     container.appendChild(Object.assign(document.createElement("div"), {
       className: "ombrellone-box ombrellone-disponibile",
@@ -694,8 +799,8 @@ displayFilteredOmbrelloni(container, results, filters) {
           Tipologia: ${o.tipologia || 'N/A'}
         </div>
         <div class="stato-ombrellone">
-          <div class="disponibile">✅ <strong>DISPONIBILE${this.getPeriodoText(filters.dataInizio, filters.dataFine)}</strong></div>
-          <div class="prezzo-dettaglio">${prezzoText}</div>
+          <div class="disponibile">✅ <strong>DISPONIBILE</strong></div>
+          <div class="prezzo-dettaglio">${prezzoTxt}</div>
           <button class="btn-acquista" onclick="ombrelloniManager.handleAcquistaPeriod('${id}', ${prezzo}, '${filters.dataInizio || ''}', '${filters.dataFine || ''}')">
             💰 Acquista ${prezzo > 0 ? `€${prezzo.toFixed(2)}` : ''}
           </button>
@@ -704,145 +809,152 @@ displayFilteredOmbrelloni(container, results, filters) {
   });
 }
 
-// Debug tariffe
-debugTariffe() {
-  console.log('=== DEBUG TARIFFE ===\nNumero tariffe:', this.data.tariffe.length);
-  this.data.tariffe.forEach((t, i) => console.log(`${i + 1}:`, {
-    codTipologia: t.codTipologia, codice: t.codice, tipo: t.tipo, 
-    prezzo: t.prezzo, dataInizio: t.dataInizio, dataFine: t.dataFine
-  }));
-}
-
-// Test calcolo prezzo
-testPriceCalculation(tipologia, dataInizio, dataFine, tipoTariffa) {
-  console.log('=== TEST CALCOLO ===\nInput:', { tipologia, dataInizio, dataFine, tipoTariffa });
-  const prezzo = this.calculatePeriodPrice({ tipologia }, dataInizio, dataFine, tipoTariffa);
-  console.log('Prezzo:', prezzo);
-  return prezzo;
-}
-
-// Testo periodo
+// Utility compatte
 getPeriodoText = (dataInizio, dataFine) => !dataInizio ? '' : 
   (!dataFine || dataInizio === dataFine) ? 
     ` per il ${new Date(dataInizio).toLocaleDateString(this.config.dateFormat)}` :
     ` dal ${new Date(dataInizio).toLocaleDateString(this.config.dateFormat)} al ${new Date(dataFine).toLocaleDateString(this.config.dateFormat)}`;
 
-// Gestisci acquisto periodo
-async handleAcquistaPeriod(ombrelloneId, prezzoVecchio, dataInizio, dataFine) {
-  const ombrellone = this.data.ombrelloni.find(o => (o.id || o._id) === ombrelloneId);
-  if (!ombrellone) return this.notify('Ombrellone non trovato', 'error');
-
-  const tipoTariffa = this.lastFilterApplied?.tipoTariffa || 'Giornaliera';
-  const prezzoCalcolato = this.getOmbrellonePriceForPeriod(ombrellone, dataInizio, dataFine || dataInizio, tipoTariffa);
-  
-  this.showAcquistaConfirmation(ombrelloneId, ombrellone, prezzoCalcolato, dataInizio, dataFine, tipoTariffa);
-}
-
-// Mostra conferma acquisto
-showAcquistaConfirmation(ombrelloneId, ombrellone, prezzo, dataInizio, dataFine, tipoTariffa) {
-  const container = document.getElementById("risultati");
-  if (!container) return;
-  
-  const numGiorni = this.calculateDays(new Date(dataInizio), new Date(dataFine || dataInizio));
-  const prezzoText = prezzo > 0 ? `€${prezzo.toFixed(2)}` : 'Da definire';
-  const prezzoMedio = prezzo > 0 ? (prezzo / numGiorni).toFixed(2) : '0.00';
-  
-  const createRow = (label, value) => `<div class="riepilogo-row"><span class="label">${label}:</span><span class="value">${value}</span></div>`;
-  
-  container.innerHTML = `
-    <div class="acquista-confirmation">
-      <h3>🏖️ Conferma Acquisto Ombrellone</h3>
-      <div class="riepilogo-card">
-        <div class="riepilogo-header"><h4>📋 Riepilogo Prenotazione</h4></div>
-        <div class="riepilogo-content">
-          <div class="riepilogo-section">
-            <h5>🏖️ Dettagli Ombrellone</h5>
-            ${createRow('Numero Ombrellone', `#${ombrelloneId}`)}
-            ${createRow('Settore', ombrellone.settore || 'N/A')}
-            ${createRow('Fila', ombrellone.fila || 'N/A')}
-            ${createRow('Posto in Fila', ombrellone.postoFila || ombrellone.numFila || ombrellone.ordine || 'N/A')}
-            ${createRow('Tipologia', ombrellone.tipologia || 'N/A')}
-          </div>
-          <div class="riepilogo-section">
-            <h5>📅 Periodo Prenotazione</h5>
-            ${createRow('Data Inizio', new Date(dataInizio).toLocaleDateString(this.config.dateFormat))}
-            ${createRow('Data Fine', new Date(dataFine || dataInizio).toLocaleDateString(this.config.dateFormat))}
-            ${createRow('Durata', this.calcolaDurata(dataInizio, dataFine || dataInizio))}
-          </div>
-          <div class="riepilogo-section">
-            <h5>💰 Dettagli Tariffa</h5>
-            ${createRow('Tipo Tariffa', tipoTariffa)}
-            ${createRow('Prezzo medio/giorno', `€${prezzoMedio}`)}
-            ${createRow('Numero giorni', numGiorni)}
-            <div class="riepilogo-row totale">${createRow('Prezzo Totale', `<span class="price">${prezzoText}</span>`)}</div>
-          </div>
-        </div>
-      </div>
-      <div class="confirmation-actions">
-        <button class="btn-confirm-acquista" onclick="ombrelloniManager.confermaAcquisto('${ombrelloneId}', ${prezzo}, '${dataInizio}', '${dataFine || dataInizio}')">✅ Conferma Acquisto</button>
-        <button class="btn-cancel-acquista" onclick="ombrelloniManager.tornaAiFiltri()">❌ Annulla</button>
-      </div>
-    </div>`;
-}
-
-// Calcola durata
 calcolaDurata = (dataInizio, dataFine) => {
   const days = this.calculateDays(new Date(dataInizio), new Date(dataFine));
   return days === 1 ? "1 giorno" : `${days} giorni`;
 };
 
-// Conferma acquisto
-confermaAcquisto = (ombrelloneId, prezzo, dataInizio, dataFine) => 
-  this.showContractFormForOmbrellone(ombrelloneId, prezzo, dataInizio, dataFine);
+// Gestione acquisto 
+async handleAcquistaPeriod(ombrelloneId, prezzoVecchio, dataInizio, dataFine) {
+  const ombrellone = this.data.ombrelloni.find(o => (o.id || o._id) === ombrelloneId);
+  if (!ombrellone) return this.notify('Ombrellone non trovato', 'error');
 
-// Torna ai filtri
-tornaAiFiltri = () => this.lastFilterApplied ? 
-  this.applyFilters(this.lastFilterApplied) : this.showList('ombrelloni');
+  const tipoTariffa = this.lastFilterApplied?.tipoTariffa || 'Giornaliera';
+  const prezzo = this.calculatePeriodPrice(ombrellone, dataInizio, dataFine || dataInizio, tipoTariffa);
+  
+  this.showAcquistaConfirmation(ombrelloneId, ombrellone, prezzo, dataInizio, dataFine, tipoTariffa);
+}
 
-// Gestisci acquisto singolo
+// Conferma acquisto compatta
+showAcquistaConfirmation(ombrelloneId, ombrellone, prezzo, dataInizio, dataFine, tipoTariffa) {
+  const container = document.getElementById("risultati");
+  if (!container) return;
+  
+  const giorni = this.calculateDays(new Date(dataInizio), new Date(dataFine || dataInizio));
+  
+  // CONTROLLO ABBONAMENTO MINIMO 7 GIORNI
+  if (tipoTariffa === 'Abbonamento' && giorni < 7) {
+    container.innerHTML = `
+      <div class="alert alert-error">
+        <h3>❌ Abbonamento Non Disponibile</h3>
+        <p><strong>Per acquistare un abbonamento è richiesto un periodo minimo di 7 giorni.</strong></p>
+        <p>Periodo selezionato: <strong>${giorni} giorn${giorni > 1 ? 'i' : 'o'}</strong></p>
+        <div class="actions">
+          <button class="btn-back" onclick="ombrelloniManager.tornaAiFiltri()">🔙 Torna ai Filtri</button>
+        </div>
+      </div>`;
+    return;
+  }
+  
+  const prezzoTxt = prezzo > 0 ? `€${prezzo.toFixed(2)}` : 'Da definire';
+  const prezzoMedio = prezzo > 0 ? (prezzo / giorni).toFixed(2) : '0.00';
+  
+  const row = (label, value) => `<div class="riepilogo-row"><span class="label">${label}:</span><span class="value">${value}</span></div>`;
+  
+  container.innerHTML = `
+    <div class="acquista-confirmation">
+      <h3>🏖️ Conferma Acquisto Ombrellone</h3>
+      <div class="riepilogo-card">
+        <div class="riepilogo-content">
+          <div class="riepilogo-section">
+            <h5>🏖️ Ombrellone #${ombrelloneId}</h5>
+            ${row('Settore', ombrellone.settore || 'N/A')}
+            ${row('Fila', ombrellone.fila || 'N/A')}
+            ${row('Tipologia', ombrellone.tipologia || 'N/A')}
+          </div>
+          <div class="riepilogo-section">
+            <h5>📅 Periodo</h5>
+            ${row('Dal', new Date(dataInizio).toLocaleDateString(this.config.dateFormat))}
+            ${row('Al', new Date(dataFine || dataInizio).toLocaleDateString(this.config.dateFormat))}
+            ${row('Durata', this.calcolaDurata(dataInizio, dataFine || dataInizio))}
+          </div>
+          <div class="riepilogo-section">
+            <h5>💰 Tariffa ${tipoTariffa}</h5>
+            ${row('Prezzo/giorno', `€${prezzoMedio}`)}
+            ${row('Giorni', giorni)}
+            <div class="riepilogo-row totale">${row('Totale', `<span class="price">${prezzoTxt}</span>`)}</div>
+          </div>
+        </div>
+      </div>
+      <div class="confirmation-actions">
+        <button class="btn-confirm-acquista" onclick="ombrelloniManager.confermaAcquisto('${ombrelloneId}', ${prezzo}, '${dataInizio}', '${dataFine || dataInizio}')">✅ Conferma</button>
+        <button class="btn-cancel-acquista" onclick="ombrelloniManager.tornaAiFiltri()">❌ Annulla</button>
+      </div>
+    </div>`;
+}
+
+// Actions compatte
+confermaAcquisto = (id, prezzo, start, end) => this.showContractFormForOmbrellone(id, prezzo, start, end);
+tornaAiFiltri = () => this.lastFilterApplied ? this.applyFilters(this.lastFilterApplied) : this.showList('ombrelloni');
+
+// Acquisto singolo
 async handleAcquista(ombrelloneId, prezzo, dataSelezionata) {
   const ombrellone = this.data.ombrelloni.find(o => (o.id || o._id) === ombrelloneId);
   if (!ombrellone) return this.notify('Ombrellone non trovato', 'error');
 
-  const prezzoText = prezzo > 0 ? `€${prezzo.toFixed(2)}` : 'prezzo da definire';
-  const dataText = dataSelezionata ? ` per il ${new Date(dataSelezionata).toLocaleDateString(this.config.dateFormat)}` : '';
+  const prezzoTxt = prezzo > 0 ? `€${prezzo.toFixed(2)}` : 'prezzo da definire';
+  const dataTxt = dataSelezionata ? ` per il ${new Date(dataSelezionata).toLocaleDateString(this.config.dateFormat)}` : '';
   
-  if (confirm(`Vuoi acquistare l'Ombrellone #${ombrelloneId}?\nSettore: ${ombrellone.settore || 'N/A'} - Fila: ${ombrellone.fila || 'N/A'}\nTipologia: ${ombrellone.tipologia || 'N/A'}\nPrezzo: ${prezzoText}${dataText}\n\nProcedi con la creazione del contratto?`)) {
+  if (confirm(`Acquistare Ombrellone #${ombrelloneId}?\nSettore: ${ombrellone.settore} - Fila: ${ombrellone.fila}\nPrezzo: ${prezzoTxt}${dataTxt}`)) {
     this.showContractFormForOmbrellone(ombrelloneId, prezzo, dataSelezionata);
   }
 }
 
-// Mostra form contratto
+// Form contratto 
 showContractFormForOmbrellone(ombrelloneId, prezzo, dataInizio, dataFine = null) {
   const container = document.getElementById("risultati");
   if (!container) return;
   
   const available = this.getAvailableClients();
   if (!available.length) {
-    return container.innerHTML = `<div class="alert alert-warning">
+    container.innerHTML = `<div class="alert alert-warning">
       <h3>Nessun Cliente Disponibile</h3>
-      <p>Tutti i clienti hanno già contratti attivi.</p>
       <button onclick="ombrelloniManager.showList('clienti')">Vedi Clienti</button>
       <button onclick="ombrelloniManager.applyFilters({})">Torna agli Ombrelloni</button>
     </div>`;
+    return;
   }
 
   const ombrellone = this.data.ombrelloni.find(o => (o.id || o._id) === ombrelloneId);
   const today = new Date().toISOString().split('T')[0];
-  const [startDate, endDate, defaultPrice] = [dataInizio || today, dataFine || dataInizio || today, prezzo > 0 ? prezzo.toFixed(2) : ''];
-
+  
+  // Ricalcola il prezzo con il tipo tariffa attuale
+  const tipoTariffa = this.lastFilterApplied?.tipoTariffa || 'Giornaliera';
+  const prezzoCalcolato = this.calculatePeriodPrice(ombrellone, dataInizio || today, dataFine || dataInizio || today, tipoTariffa);
+  
+  console.log(`Prezzo calcolato per il form: €${prezzoCalcolato}`);
+  
   container.innerHTML = `
     <h3>🏖️ Nuovo Contratto - Ombrellone #${ombrelloneId}</h3>
     <div class="ombrellone-info">
-      <p><strong>Ombrellone Selezionato:</strong></p>
-      <p>Settore: ${ombrellone?.settore || 'N/A'} | Fila: ${ombrellone?.fila || 'N/A'} | Posto: ${ombrellone?.postoFila || ombrellone?.numFila || 'N/A'}</p>
-      <p>Tipologia: ${ombrellone?.tipologia || 'N/A'}</p>
+      <p><strong>Settore:</strong> ${ombrellone?.settore || 'N/A'} | <strong>Fila:</strong> ${ombrellone?.fila || 'N/A'} | <strong>Tipologia:</strong> ${ombrellone?.tipologia || 'N/A'}</p>
+      <p><strong>Tipo Tariffa:</strong> ${tipoTariffa}</p>
     </div>
     <form id="formContratto">
       <input type="hidden" name="ombrelloneId" value="${ombrelloneId}">
-      <div class="form-group"><label>Data Inizio: <input type="date" name="dataInizio" value="${startDate}" required></label></div>
-      <div class="form-group"><label>Data Fine: <input type="date" name="dataFine" value="${endDate}" required></label></div>
-      <div class="form-group"><label>Importo (€): <input type="number" step="0.01" name="importo" value="${defaultPrice}" required min="0"></label></div>
+      <input type="hidden" name="tipoTariffa" value="${tipoTariffa}">
+      <div class="form-group">
+        <label>Data Inizio: 
+          <input type="date" name="dataInizio" value="${dataInizio || today}" required onchange="ombrelloniManager.updatePrezzoForm()">
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Data Fine: 
+          <input type="date" name="dataFine" value="${dataFine || dataInizio || today}" required onchange="ombrelloniManager.updatePrezzoForm()">
+        </label>
+      </div>
+      <div class="form-group">
+        <label>Importo (€): 
+          <input type="number" step="0.01" name="importo" value="${prezzoCalcolato > 0 ? prezzoCalcolato.toFixed(2) : ''}" required min="0" id="importoInput">
+        </label>
+        <small style="color: #666; font-size: 0.9em;">Prezzo calcolato automaticamente in base alle tariffe</small>
+      </div>
       <div class="form-group">
         <label>Cliente: 
           <select name="cliente" required>
@@ -860,7 +972,30 @@ showContractFormForOmbrellone(ombrelloneId, prezzo, dataInizio, dataFine = null)
   document.getElementById('formContratto').addEventListener('submit', e => this.handleContractSubmitWithPeriod(e));
 }
 
-// Gestisci submit contratto con periodo
+updatePrezzoForm() {
+  const form = document.getElementById('formContratto');
+  if (!form) return;
+  
+  const dataInizio = form.querySelector('[name="dataInizio"]').value;
+  const dataFine = form.querySelector('[name="dataFine"]').value;
+  const ombrelloneId = form.querySelector('[name="ombrelloneId"]').value;
+  const tipoTariffa = form.querySelector('[name="tipoTariffa"]').value;
+  const importoInput = document.getElementById('importoInput');
+  
+  if (!dataInizio || !dataFine || !ombrelloneId) return;
+  
+  const ombrellone = this.data.ombrelloni.find(o => (o.id || o._id) === ombrelloneId);
+  if (!ombrellone) return;
+  
+  const prezzoCalcolato = this.calculatePeriodPrice(ombrellone, dataInizio, dataFine, tipoTariffa);
+  
+  if (importoInput && prezzoCalcolato > 0) {
+    importoInput.value = prezzoCalcolato.toFixed(2);
+    console.log(`Prezzo aggiornato nel form: €${prezzoCalcolato}`);
+  }
+}
+
+// Submit contratto 
 async handleContractSubmitWithPeriod(e) {
   e.preventDefault();
   const form = new FormData(e.target);
@@ -877,20 +1012,19 @@ async handleContractSubmitWithPeriod(e) {
   }
 
   if (new Date(data.dataFine) < new Date(data.dataInizio)) {
-    return this.notify('La data fine deve essere successiva o uguale alla data inizio', 'error');
+    return this.notify('Data fine deve essere >= data inizio', 'error');
   }
 
   try {
     await this.saveContract({ data: data.dataInizio, importo: data.importo, stipulatoDa: data.stipulatoDa });
     await this.createOmbrelloneSalesPeriod(data.ombrelloneId, data.dataInizio, data.dataFine);
     e.target.reset();
-    this.notify(`Contratto creato e ombrellone #${data.ombrelloneId} venduto per il periodo selezionato!`, 'success');
+    this.notify(`Contratto creato per ombrellone #${data.ombrelloneId}!`, 'success');
     setTimeout(() => this.showList('ombrelloni'), 1000);
   } catch (error) {
-    this.notify('Errore salvataggio: ' + error.message, 'error');
+    this.notify('Errore: ' + error.message, 'error');
   }
 }
-
 // Crea vendita periodo
 async createOmbrelloneSalesPeriod(ombrelloneId, dataInizio, dataFine) {
   const lastContract = this.data.contratti[this.data.contratti.length - 1];
@@ -988,7 +1122,7 @@ displayFilteredContratti(container, results) {
       <div class="contratto-item">
         <strong>Contratto #${i + 1}</strong><br>
         Data: ${date} | Importo: €${c.importo.toFixed(2)} | Cliente: ${this.getClientNames(c.stipulatoDa)}<br>
-        <button onclick="ombrelloniManager.editContract('${id}')">Modifica</button>
+        <button onclick="ombrelloniManager.toggleEditContract('${id}')">Modifica</button>
         <button onclick="ombrelloniManager.deleteContract('${id}')">Elimina</button>
         <hr>
       </div>`;
@@ -1013,7 +1147,6 @@ toggleMinDays() {
 }
 
 // Aggiorna statistiche
-// Aggiorna statistiche - VERSIONE CORRETTA
 updateStats() {
   const active = this.data.contratti.length;
   const total = this.data.contratti.reduce((sum, c) => sum + (+c.importo || 0), 0);
@@ -1046,5 +1179,4 @@ updateStats() {
 let ombrelloniManager;
 document.addEventListener('DOMContentLoaded', () => {
   ombrelloniManager = new OmbrelloniManager();
-  console.log("Sistema Ombrelloni caricato - Versione Ultra-Ottimizzata");
 });
