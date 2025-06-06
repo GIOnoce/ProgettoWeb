@@ -176,7 +176,8 @@ displayOmbrelloni(container) {
     const id = o.id || o._id;
     container.appendChild(Object.assign(document.createElement("div"), {
       className: "ombrellone-box",
-      innerHTML: `<div class="info-ombrellone"><strong>Ombrellone #${id}</strong><br>Settore: ${o.settore || 'N/A'}<br>Fila: ${o.fila || 'N/A'}, Posto: ${o.postoFila || o.numFila || o.ordine || 'N/A'}<br>Tipologia: ${o.tipologia || 'N/A'}</div><div class="stato-ombrellone">${this.getStatus(id)}</div>`
+      innerHTML: `<div class="info-ombrellone"><strong>Ombrellone #${id}</strong>
+      <br>Settore: ${o.settore || 'N/A'}<br>Fila: ${o.fila || 'N/A'}, Posto: ${o.postoFila || o.numFila || o.ordine || 'N/A'}<br>Tipologia: ${o.tipologia || 'N/A'}</div><div class="stato-ombrellone">${this.getStatus(id)}</div>`
     }));
   });
 }
@@ -258,7 +259,7 @@ getStatus(id) {
       return this.notify('Compila tutti i campi correttamente', 'error');
 
     try {
-      const response = await fetch(`${this.config.apiUrl}/Contratti/${id}`, {
+      const response = await fetch(`${this.config.apiUrl}/api/Contratti/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updated)
@@ -315,7 +316,7 @@ getStatus(id) {
   }
 
   async saveContract(data) {
-    const response = await fetch(`${this.config.apiUrl}/Contratti`, {
+    const response = await fetch(`${this.config.apiUrl}/api/Contratti`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data)
@@ -326,7 +327,6 @@ getStatus(id) {
     saved.stipulatoDa = this.arr(saved.stipulatoDa);
     saved.importo = +saved.importo;
     this.data.contratti.push(saved);
-    this.notify('Contratto creato', 'success');
     this.updateStats();
   }
 
@@ -382,7 +382,7 @@ async confirmDeleteContract(id) {
     // PRIMO: Elimina gli ombrelloni venduti associati PRIMA di eliminare il contratto
     try {
       const ombrelloniResponse = await fetch(
-        `${this.config.apiUrl}/ombrelloneVenduto?contratto=${contractToDelete.numProgr}`, 
+        `${this.config.apiUrl}/api/ombrelloneVenduto?contratto=${contractToDelete.numProgr}`, 
         { method: 'DELETE' }
       );
       
@@ -397,7 +397,7 @@ async confirmDeleteContract(id) {
     }
 
     // SECONDO: Elimina il contratto
-    const contractResponse = await fetch(`${this.config.apiUrl}/Contratti/${id}`, { 
+    const contractResponse = await fetch(`${this.config.apiUrl}/api/Contratti/${id}`, { 
       method: 'DELETE' 
     });
     
@@ -1032,7 +1032,7 @@ async createOmbrelloneSalesPeriod(ombrelloneId, dataInizio, dataFine) {
   const lastContract = this.data.contratti[this.data.contratti.length - 1];
   
   try {
-    const response = await fetch(`${this.config.apiUrl}/ombrelloneVenduto`, {
+    const response = await fetch(`${this.config.apiUrl}/api/ombrelloneVenduto`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
@@ -1088,7 +1088,7 @@ async handleContractSubmitWithOmbrellone(e) {
 // Crea vendita ombrellone
 async createOmbrelloneSale(ombrelloneId, data) {
   try {
-    const response = await fetch(`${this.config.apiUrl}/ombrelloneVenduto`, {
+    const response = await fetch(`${this.config.apiUrl}/api/ombrelloneVenduto`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
