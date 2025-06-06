@@ -37,8 +37,8 @@ async loadData() {
   try {
     // Carica tutti i dati necessari in parallelo
     const [dataResponse, tariffeResponse] = await Promise.all([
-      fetch(`${this.config.apiUrl}/data`),
-      fetch(`${this.config.apiUrl}/Tariffe`)
+      fetch(`${this.config.apiUrl}/api/data`),
+      fetch(`${this.config.apiUrl}/api/Tariffe`)
     ]);
     
     if (!dataResponse.ok) throw new Error(`HTTP ${dataResponse.status} - Data`);
