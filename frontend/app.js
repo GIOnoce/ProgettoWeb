@@ -1,11 +1,13 @@
 // Sistema Gestione Ombrelloni 
+
 class OmbrelloniManager {
   constructor() {
     this.data = { ombrelloni: [], tipologie: [], tariffe: [], contratti: [], clienti: [], venduti: [], disponibilita: [] };
-    this.config = { apiUrl: 'http://localhost:3000/api', dateFormat: 'it-IT' };
+    this.config = { apiUrl: 'https://progettoweb-ivxb.onrender.com', dateFormat: 'it-IT' };
     this.init();
   }
 
+  
   async init() {
     try { await this.loadData(); this.setupEvents(); this.handleURL(); this.updateStats(); } 
     catch (e) { this.notify('Errore: ' + e.message, 'error'); }
